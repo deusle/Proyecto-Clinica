@@ -15,92 +15,79 @@ def crear_tablas():
     sql_medicos = "CREATE TABLE IF NOT EXISTS medicos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre_completo TEXT NOT NULL, especialidad TEXT NOT NULL, telefono TEXT);"
     sql_horarios = "CREATE TABLE IF NOT EXISTS horarios_medicos (id INTEGER PRIMARY KEY AUTOINCREMENT, medico_id INTEGER NOT NULL, dia_semana INTEGER NOT NULL, hora_inicio TEXT NOT NULL, hora_fin TEXT NOT NULL, FOREIGN KEY (medico_id) REFERENCES medicos (id));"
     sql_pacientes = "CREATE TABLE IF NOT EXISTS pacientes (id INTEGER PRIMARY KEY AUTOINCREMENT, dni TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL, apellidos TEXT NOT NULL, fecha_nac TEXT, genero TEXT, telefono TEXT, email TEXT, historial_basico TEXT);"
+    
+    # --- SENTENCIA SQL CORREGIDA ---
     sql_citas = """
     CREATE TABLE IF NOT EXISTS citas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_id INTEGER NOT NULL, medico_id INTEGER NOT NULL,
         fecha_hora TEXT NOT NULL, estado TEXT NOT NULL, 
+        sintomas TEXT, diagnostico TEXT, tratamiento TEXT, notas TEXT,
         monto_pagado REAL, metodo_pago TEXT, aseguradora TEXT,
         FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
         FOREIGN KEY (medico_id) REFERENCES medicos (id)
     );
     """
-    cursor.execute(sql_pacientes)
-    cursor.execute(sql_medicos)
-    cursor.execute(sql_horarios)
-    cursor.execute(sql_citas)
-    conn.commit()
-    conn.close()
+    cursor.execute(sql_pacientes); cursor.execute(sql_medicos)
+    cursor.execute(sql_horarios); cursor.execute(sql_citas)
+    conn.commit(); conn.close()
 
-# --- Funciones de Citas ---
-def agregar_cita(paciente_id, medico_id, fecha_hora):
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO citas (paciente_id, medico_id, fecha_hora, estado) VALUES (?, ?, ?, 'Programada')", (paciente_id, medico_id, fecha_hora))
-    conn.commit()
-    conn.close()
-
-def eliminar_cita(cita_id):
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM citas WHERE id = ?", (cita_id,))
-    conn.commit()
-    conn.close()
-
-def obtener_citas_detalladas():
-    conn = conectar_db()
-    cursor = conn.cursor()
-    query="""
-    SELECT c.id, p.nombre || ' ' || p.apellidos, m.nombre_completo, m.especialidad, c.fecha_hora, c.estado 
-    FROM citas c JOIN pacientes p ON c.paciente_id = p.id JOIN medicos m ON c.medico_id = m.id 
+def actualizar_consulta_clinica(cita_id, sintomas, diagnostico, tratamiento, notas):
+    conn = conectar_db(); cursor = conn.cursor()
+    query = "UPDATE citas SET sintomas = ?, diagnostico = ?, tratamiento = ?, notas = ? WHERE id = ?"
+    cursor.execute(query, (sintomas, diagnostico, tratamiento, notas, cita_id))
+    conn.commit(); conn.close()
+    
+def obtener_historial_clinico_paciente(paciente_id):
+    conn = conectar_db(); cursor = conn.cursor()
+    query = """
+    SELECT c.fecha_hora, m.nombre_completo, m.especialidad, c.sintomas, c.diagnostico, c.tratamiento
+    FROM citas c
+    JOIN medicos m ON c.medico_id = m.id
+    WHERE c.paciente_id = ? AND c.estado = 'Pagada'
     ORDER BY c.fecha_hora DESC
     """
-    cursor.execute(query)
-    citas = cursor.fetchall()
+    cursor.execute(query, (paciente_id,))
+    historial = cursor.fetchall()
     conn.close()
-    return citas
+    return historial
 
-# --- Funciones de Pagos ---
+def agregar_cita(paciente_id, medico_id, fecha_hora):
+    conn = conectar_db(); cursor = conn.cursor()
+    cursor.execute("INSERT INTO citas (paciente_id, medico_id, fecha_hora, estado) VALUES (?, ?, ?, 'Programada')", (paciente_id, medico_id, fecha_hora))
+    conn.commit(); conn.close()
+def eliminar_cita(cita_id):
+    conn = conectar_db(); cursor = conn.cursor()
+    cursor.execute("DELETE FROM citas WHERE id = ?", (cita_id,))
+    conn.commit(); conn.close()
+def obtener_citas_detalladas():
+    conn = conectar_db(); cursor = conn.cursor()
+    query="SELECT c.id, p.nombre || ' ' || p.apellidos, m.nombre_completo, m.especialidad, c.fecha_hora, c.estado FROM citas c JOIN pacientes p ON c.paciente_id = p.id JOIN medicos m ON c.medico_id = m.id ORDER BY c.fecha_hora DESC"
+    cursor.execute(query); citas = cursor.fetchall(); conn.close(); return citas
 def obtener_citas_programadas(filtro=""):
-    conn = conectar_db()
-    cursor = conn.cursor()
-    query = """
-    SELECT c.id, p.nombre || ' ' || p.apellidos as paciente, m.nombre_completo as medico, c.fecha_hora
-    FROM citas c JOIN pacientes p ON c.paciente_id = p.id JOIN medicos m ON c.medico_id = m.id
-    WHERE c.estado = 'Programada'
-    """
-    if filtro:
-        query += " AND (paciente LIKE ? OR medico LIKE ?)"
-        cursor.execute(query, (f'%{filtro}%', f'%{filtro}%'))
-    else:
-        cursor.execute(query)
-    citas = cursor.fetchall()
-    conn.close()
-    return citas
-
+    conn = conectar_db(); cursor = conn.cursor()
+    query = "SELECT c.id, p.nombre || ' ' || p.apellidos as paciente, m.nombre_completo as medico, c.fecha_hora FROM citas c JOIN pacientes p ON c.paciente_id = p.id JOIN medicos m ON c.medico_id = m.id WHERE c.estado = 'Programada'"
+    if filtro: query += " AND (paciente LIKE ? OR medico LIKE ?)"; cursor.execute(query, (f'%{filtro}%', f'%{filtro}%'))
+    else: cursor.execute(query)
+    citas = cursor.fetchall(); conn.close(); return citas
 def registrar_pago(cita_id, monto, metodo_pago, aseguradora):
-    conn = conectar_db()
-    cursor = conn.cursor()
+    conn = conectar_db(); cursor = conn.cursor()
     query = "UPDATE citas SET monto_pagado = ?, metodo_pago = ?, aseguradora = ?, estado = 'Pagada' WHERE id = ?"
     cursor.execute(query, (monto, metodo_pago, aseguradora, cita_id))
-    conn.commit()
-    conn.close()
-
+    conn.commit(); conn.close()
+    
 def obtener_historial_pagos():
-    conn = conectar_db()
-    cursor = conn.cursor()
+    conn = conectar_db(); cursor = conn.cursor()
     query = """
-    SELECT c.id, p.nombre || ' ' || p.apellidos, m.nombre_completo, c.fecha_hora, c.monto_pagado, c.metodo_pago, c.aseguradora
+    SELECT c.id, p.nombre || ' ' || p.apellidos, m.nombre_completo, c.fecha_hora, 
+           c.monto_pagado, c.metodo_pago, c.aseguradora, 
+           c.sintomas, c.diagnostico, c.tratamiento, c.notas
     FROM citas c
     JOIN pacientes p ON c.paciente_id = p.id
     JOIN medicos m ON c.medico_id = m.id
     WHERE c.estado = 'Pagada' ORDER BY c.fecha_hora DESC
     """
-    cursor.execute(query)
-    pagos = cursor.fetchall()
-    conn.close()
+    cursor.execute(query); pagos = cursor.fetchall(); conn.close()
     return pagos
-
-# --- Funciones reescritas en formato legible ---
 
 def agregar_medico(nombre, especialidad, telefono, horarios):
     conn = conectar_db()
@@ -137,7 +124,6 @@ def obtener_medicos(filtro=""):
     conn.close()
     return medicos
 
-# --- FUNCIÓN CORREGIDA ---
 def obtener_horarios_por_medico(medico_id):
     conn = conectar_db()
     cursor = conn.cursor()
