@@ -24,3 +24,19 @@ def get_appointments_by_doctor_and_day(doctor_id, date_str): return database.obt
 def get_scheduled_appointments(filter_text=""): return database.obtener_citas_programadas(filter_text)
 def register_payment(appointment_id, data): database.registrar_pago(appointment_id, *data)
 def get_payment_history(): return database.obtener_historial_pagos() # NUEVO
+
+# --- Lógica de Recetas ---
+def create_prescription(paciente_id, medico_id, fecha, contenido):
+    database.agregar_receta(paciente_id, medico_id, fecha, contenido)
+
+def get_prescriptions_by_patient(paciente_id):
+    return database.obtener_recetas_por_paciente(paciente_id)
+
+def get_all_prescriptions():
+    return database.obtener_todas_las_recetas()
+
+def get_all_pacientes():
+    return database.obtener_pacientes()
+
+def get_all_medicos():
+    return database.obtener_medicos()

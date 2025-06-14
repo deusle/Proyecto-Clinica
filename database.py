@@ -24,12 +24,26 @@ def crear_tablas():
         FOREIGN KEY (medico_id) REFERENCES medicos (id)
     );
     """
+    # Tabla de recetas
+    sql_recetas = """
+    CREATE TABLE IF NOT EXISTS recetas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paciente_id INTEGER NOT NULL,
+        medico_id INTEGER NOT NULL,
+        fecha TEXT NOT NULL,
+        contenido TEXT NOT NULL,
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
+        FOREIGN KEY (medico_id) REFERENCES medicos (id)
+    );
+    """
     cursor.execute(sql_pacientes)
     cursor.execute(sql_medicos)
     cursor.execute(sql_horarios)
     cursor.execute(sql_citas)
+    cursor.execute(sql_recetas)
     conn.commit()
     conn.close()
+     # Crear tabla de recetas
 
 # --- Funciones de Citas ---
 def agregar_cita(paciente_id, medico_id, fecha_hora):
@@ -219,3 +233,62 @@ def actualizar_estado_cita(cita_id, nuevo_estado):
     cursor.execute("UPDATE citas SET estado = ? WHERE id = ?", (nuevo_estado, cita_id))
     conn.commit()
     conn.close()
+    
+    # --- Funciones para Recetas ---
+
+def crear_tabla_recetas():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS recetas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paciente_id INTEGER NOT NULL,
+        medico_id INTEGER NOT NULL,
+        fecha TEXT NOT NULL,
+        contenido TEXT NOT NULL,
+        FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+        FOREIGN KEY (medico_id) REFERENCES medicos(id)
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+def agregar_receta(paciente_id, medico_id, fecha, contenido):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO recetas (paciente_id, medico_id, fecha, contenido)
+    VALUES (?, ?, ?, ?)
+    """, (paciente_id, medico_id, fecha, contenido))
+    conn.commit()
+    conn.close()
+
+def obtener_recetas_por_paciente(paciente_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT r.id, r.fecha, r.contenido, m.nombre_completo AS medico
+    FROM recetas r
+    JOIN medicos m ON r.medico_id = m.id
+    WHERE r.paciente_id = ?
+    ORDER BY r.fecha DESC
+    """, (paciente_id,))
+    recetas = cursor.fetchall()
+    conn.close()
+    return recetas
+
+def obtener_todas_las_recetas():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT r.id, r.fecha, r.contenido,
+           p.nombre || ' ' || p.apellidos AS paciente,
+           m.nombre_completo AS medico
+    FROM recetas r
+    JOIN pacientes p ON r.paciente_id = p.id
+    JOIN medicos m ON r.medico_id = m.id
+    ORDER BY r.fecha DESC
+    """)
+    recetas = cursor.fetchall()
+    conn.close()
+    return recetas
