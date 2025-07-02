@@ -1,7 +1,7 @@
 # ui_components/patient_module.py
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QPushButton, QLabel, QMessageBox, QDialog, QFormLayout, QDateEdit, QComboBox, QTextEdit, QDialogButtonBox, QHeaderView, QTreeWidget, QTreeWidgetItem
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import QDate
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QPushButton, QLabel, QMessageBox, QDialog, QFormLayout, QDateEdit, QComboBox, QTextEdit, QDialogButtonBox, QHeaderView, QTreeWidget, QTreeWidgetItem, QApplication
+from PySide6.QtGui import QIcon, QCursor
+from PySide6.QtCore import QDate, Qt
 
 import data_manager
 
@@ -24,7 +24,32 @@ class DialogoPaciente(QDialog):
         if p: self.dni.setText(p['dni']); self.nombre.setText(p['nombre']); self.apellidos.setText(p['apellidos']); self.fecha_nac.setDate(QDate.fromString(p['fecha_nac'], "yyyy-MM-dd")); self.genero.setCurrentText(p['genero']); self.telefono.setText(p['telefono']); self.email.setText(p['email']); self.historial.setText(p['historial_basico'])
     def get_data(self): return (self.dni.text(), self.nombre.text(), self.apellidos.text(), self.fecha_nac.date().toString("yyyy-MM-dd"), self.genero.currentText(), self.telefono.text(), self.email.text(), self.historial.toPlainText())
 
-# --- Nueva Ventana para ver el Historial Clínico ---
+# --- NUEVO Diálogo para mostrar el informe de la IA ---
+class DialogoInformeIA(QDialog):
+    def __init__(self, texto_informe, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Informe Clínico Generado por IA")
+        self.setMinimumSize(700, 550)
+
+        layout = QVBoxLayout(self)
+        
+        info_label = QLabel("Este es un resumen generado por IA como apoyo. Verifique siempre la información con el historial completo.")
+        info_label.setStyleSheet("font-style: italic; color: #555; margin-bottom: 10px;")
+        
+        self.text_edit = QTextEdit()
+        self.text_edit.setReadOnly(True)
+        # Usar setMarkdown para renderizar negritas, listas, etc.
+        self.text_edit.setMarkdown(texto_informe)
+
+        botones = QDialogButtonBox(QDialogButtonBox.Ok)
+        botones.accepted.connect(self.accept)
+        
+        layout.addWidget(info_label)
+        layout.addWidget(self.text_edit)
+        layout.addWidget(botones)
+
+
+# --- Ventana de Historial Clínico MODIFICADA ---
 class VentanaHistorialClinico(QDialog):
     def __init__(self, paciente_id, paciente_nombre, parent=None):
         super().__init__(parent)
@@ -35,26 +60,62 @@ class VentanaHistorialClinico(QDialog):
         self.layout = QVBoxLayout(self)
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(["Fecha", "Médico", "Especialidad"])
-        self.tree.setColumnWidth(0, 180)
-        self.tree.setColumnWidth(1, 250)
+        self.tree.setColumnWidth(0, 180); self.tree.setColumnWidth(1, 250)
+        
+        # Layout para botones
+        button_layout = QHBoxLayout()
+        self.btn_generar_informe = QPushButton(QIcon("icons/ai.png"), " Generar Informe con IA")
+        self.btn_generar_informe.clicked.connect(self.generar_informe_ia)
+        button_layout.addStretch()
+        button_layout.addWidget(self.btn_generar_informe)
         
         self.layout.addWidget(self.tree)
+        self.layout.addLayout(button_layout)
         self.cargar_historial()
 
     def cargar_historial(self):
+        self.tree.clear()
         historial = data_manager.get_patient_clinical_history(self.paciente_id)
+        if not historial:
+            item_vacio = QTreeWidgetItem(self.tree, ["El paciente no tiene historial clínico registrado."])
+            self.btn_generar_informe.setEnabled(False) # Desactivar botón si no hay historial
+            return
+
+        self.btn_generar_informe.setEnabled(True)
         for consulta in historial:
             # Item principal con la info de la cita
             item_cita = QTreeWidgetItem(self.tree, [
-                consulta['fecha_hora'],
-                consulta['nombre_completo'],
-                consulta['especialidad']
+                str(consulta['fecha_hora']),
+                str(consulta['nombre_completo']),
+                str(consulta['especialidad'])
             ])
             # Hijos con los detalles clínicos
-            QTreeWidgetItem(item_cita, ["Síntomas:", consulta['sintomas']])
-            QTreeWidgetItem(item_cita, ["Diagnóstico:", consulta['diagnostico']])
-            QTreeWidgetItem(item_cita, ["Tratamiento:", consulta['tratamiento']])
-            self.tree.expandAll()
+            QTreeWidgetItem(item_cita, ["Síntomas:", str(consulta['sintomas'] or 'N/A')])
+            QTreeWidgetItem(item_cita, ["Diagnóstico:", str(consulta['diagnostico'] or 'N/A')])
+            QTreeWidgetItem(item_cita, ["Tratamiento:", str(consulta['tratamiento'] or 'N/A')])
+        self.tree.expandAll()
+    
+    def generar_informe_ia(self):
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Procesando")
+        msg_box.setText("Generando informe con IA, por favor espere...")
+        msg_box.setStandardButtons(QMessageBox.NoButton)
+        msg_box.show()
+        
+        QApplication.processEvents() # Asegura que el mensaje se muestre
+        
+        self.setCursor(QCursor(Qt.WaitCursor))
+        
+        informe = data_manager.generate_clinical_summary_with_ai(self.paciente_id)
+        
+        self.setCursor(QCursor(Qt.ArrowCursor))
+        msg_box.hide()
+
+        if informe.startswith("ERROR:"):
+            QMessageBox.critical(self, "Error de IA", informe)
+        else:
+            dialogo = DialogoInformeIA(informe, self)
+            dialogo.exec()
 
 # --- Ventana de Gestión de Pacientes con el nuevo botón ---
 class VentanaGestionPacientes(QWidget):
