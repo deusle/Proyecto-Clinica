@@ -1,5 +1,4 @@
 # ui_components/doctor_module.py
-# (Se añaden QTabWidget y QTextEdit a las importaciones)
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QPushButton, QLabel, QMessageBox, QDialog, QFormLayout, QComboBox, QTimeEdit, QCheckBox, QGroupBox, QGridLayout, QDialogButtonBox, QHeaderView, QTabWidget, QTextEdit
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QTime
@@ -9,7 +8,7 @@ from config import ESPECIALIDADES, DIAS_SEMANA
 
 # --- Diálogo para añadir/editar médicos (sin cambios) ---
 class DialogoMedico(QDialog):
-    # ... (Esta clase no cambia, puedes usar la de la versión anterior)
+    # ... (Esta clase no cambia)
     def __init__(self, medico_id=None, parent=None):
         super().__init__(parent)
         self.medico_id = medico_id
@@ -48,25 +47,75 @@ class DialogoMedico(QDialog):
             if widgets['check'].isChecked(): horarios[dia_idx] = {'inicio': widgets['inicio'].time().toString("HH:mm"),'fin': widgets['fin'].time().toString("HH:mm")}
         return self.nombre.text(), self.especialidad.currentText(), self.telefono.text(), horarios
 
-# --- Diálogo para rellenar el historial clínico ---
+# --- DIÁLOGO DE REGISTRO CLÍNICO COMPLETAMENTE REDISEÑADO ---
 class DialogoRegistroClinico(QDialog):
     def __init__(self, cita_id, parent=None):
         super().__init__(parent)
         self.cita_id = cita_id
         self.setWindowTitle(f"Completar Registro Clínico para Cita N° {self.cita_id}")
-        self.setMinimumSize(500, 600)
-        self.layout = QFormLayout(self)
-        self.sintomas = QTextEdit(); self.diagnostico = QTextEdit(); self.tratamiento = QTextEdit(); self.notas = QTextEdit()
-        self.layout.addRow("<b>Síntomas Reportados:</b>", self.sintomas)
-        self.layout.addRow("<b>Diagnóstico:</b>", self.diagnostico)
-        self.layout.addRow("<b>Tratamiento y Receta:</b>", self.tratamiento)
-        self.layout.addRow("<b>Notas Adicionales:</b>", self.notas)
-        self.botones = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel); self.botones.accepted.connect(self.accept); self.botones.rejected.connect(self.reject)
-        self.layout.addWidget(self.botones)
-    def get_data(self):
-        return (self.sintomas.toPlainText(), self.diagnostico.toPlainText(), self.tratamiento.toPlainText(), self.notas.toPlainText())
+        self.setMinimumSize(600, 700)
+        
+        main_layout = QVBoxLayout(self)
 
-# --- Ventana de Gestión de Médicos con Pestañas ---
+        # Motivo de la consulta
+        self.motivo_consulta = QTextEdit()
+        self.motivo_consulta.setFixedHeight(80)
+        form_layout = QFormLayout()
+        form_layout.addRow("<b>Motivo Principal de la Consulta:</b>", self.motivo_consulta)
+        main_layout.addLayout(form_layout)
+        
+        # Grupo para Signos Vitales
+        vitals_group = QGroupBox("Signos Vitales")
+        vitals_layout = QGridLayout()
+        self.temperatura = QLineEdit(); self.temperatura.setPlaceholderText("Ej: 37.5")
+        self.presion = QLineEdit(); self.presion.setPlaceholderText("Ej: 120/80")
+        self.frec_cardiaca = QLineEdit(); self.frec_cardiaca.setPlaceholderText("Ej: 75")
+        self.saturacion = QLineEdit(); self.saturacion.setPlaceholderText("Ej: 98")
+        vitals_layout.addWidget(QLabel("Temperatura (°C):"), 0, 0); vitals_layout.addWidget(self.temperatura, 0, 1)
+        vitals_layout.addWidget(QLabel("Presión Arterial (mmHg):"), 0, 2); vitals_layout.addWidget(self.presion, 0, 3)
+        vitals_layout.addWidget(QLabel("Frec. Cardíaca (lpm):"), 1, 0); vitals_layout.addWidget(self.frec_cardiaca, 1, 1)
+        vitals_layout.addWidget(QLabel("Saturación O₂ (%):"), 1, 2); vitals_layout.addWidget(self.saturacion, 1, 3)
+        vitals_group.setLayout(vitals_layout)
+        main_layout.addWidget(vitals_group)
+
+        # Grupo para la evaluación clínica
+        eval_group = QGroupBox("Evaluación Clínica")
+        eval_layout = QFormLayout()
+        self.sintomas = QTextEdit(); self.diagnostico = QTextEdit(); self.tratamiento = QTextEdit(); self.notas = QTextEdit()
+        eval_layout.addRow("<b>Síntomas y Examen Físico:</b>", self.sintomas)
+        eval_layout.addRow("<b>Diagnóstico:</b>", self.diagnostico)
+        eval_layout.addRow("<b>Tratamiento y Receta:</b>", self.tratamiento)
+        eval_layout.addRow("<b>Notas Adicionales:</b>", self.notas)
+        eval_group.setLayout(eval_layout)
+        main_layout.addWidget(eval_group)
+
+        self.botones = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        self.botones.accepted.connect(self.accept)
+        self.botones.rejected.connect(self.reject)
+        main_layout.addWidget(self.botones)
+
+    def get_data(self):
+        # Helper para convertir a número o devolver None
+        def to_float(text):
+            try: return float(text)
+            except (ValueError, TypeError): return None
+        def to_int(text):
+            try: return int(text)
+            except (ValueError, TypeError): return None
+
+        return (
+            self.motivo_consulta.toPlainText(),
+            to_float(self.temperatura.text()),
+            self.presion.text(),
+            to_int(self.frec_cardiaca.text()),
+            to_int(self.saturacion.text()),
+            self.sintomas.toPlainText(),
+            self.diagnostico.toPlainText(),
+            self.tratamiento.toPlainText(),
+            self.notas.toPlainText()
+        )
+
+# --- Ventana de Gestión de Médicos con Pestañas (sin cambios) ---
 class VentanaGestionMedicos(QWidget):
     def __init__(self):
         super().__init__()
@@ -117,15 +166,13 @@ class VentanaGestionMedicos(QWidget):
             for c, val in enumerate(med): self.tabla_medicos.setItem(r, c, QTableWidgetItem(str(val)))
 
     def cargar_consultas_pagadas(self):
-        # Usamos la misma función que el historial de pagos, ya que son las citas "Pagadas"
         consultas = data_manager.get_payment_history()
-        # Filtramos para mostrar solo las que aún no tienen diagnóstico
         consultas_pendientes = [c for c in consultas if not c['diagnostico']]
         self.tabla_consultas.setRowCount(len(consultas_pendientes))
         for r, consulta in enumerate(consultas_pendientes):
             self.tabla_consultas.setItem(r, 0, QTableWidgetItem(str(consulta['id'])))
-            self.tabla_consultas.setItem(r, 1, QTableWidgetItem(str(consulta[1]))) # Nombre paciente
-            self.tabla_consultas.setItem(r, 2, QTableWidgetItem(str(consulta[2]))) # Nombre medico
+            self.tabla_consultas.setItem(r, 1, QTableWidgetItem(str(consulta[1])))
+            self.tabla_consultas.setItem(r, 2, QTableWidgetItem(str(consulta[2])))
             self.tabla_consultas.setItem(r, 3, QTableWidgetItem(str(consulta['fecha_hora'])))
 
     def abrir_dialogo_medico(self):

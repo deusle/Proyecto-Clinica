@@ -24,13 +24,10 @@ def get_appointment_by_id(appointment_id): return database.obtener_cita_completa
 
 # --- Lógica de Historial Clínico ---
 def get_paid_appointments_for_clinical_record(filter_text=""):
-    # Esta función podría ser más compleja, por ahora reutilizamos la de pagos
-    # pero buscando por estado 'Pagada'
-    # En un futuro, podrías crear una función específica en database.py
-    # que busque citas 'Pagada' sin registro clínico.
-    all_payments = database.obtener_historial_pagos() # Usaremos esta, pero idealmente sería una nueva
+    all_payments = database.obtener_historial_pagos() 
     return all_payments
 
+# --- FUNCIÓN MODIFICADA ---
 def save_clinical_record(appointment_id, data):
     database.actualizar_consulta_clinica(appointment_id, *data)
 
@@ -42,12 +39,12 @@ def get_scheduled_appointments(filter_text=""): return database.obtener_citas_pr
 def register_payment(appointment_id, data): database.registrar_pago(appointment_id, *data)
 def get_payment_history(): return database.obtener_historial_pagos()
 
-# --- NUEVA FUNCIÓN CON INTELIGENCIA ARTIFICIAL ---
+# --- FUNCIÓN DE IA MEJORADA ---
 def generate_clinical_summary_with_ai(patient_id):
     """
-    Genera un resumen clínico y puntos clave usando la IA de Google.
+    Genera un resumen clínico y puntos clave usando la IA de Google y los datos estructurados.
     """
-    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "CLAVE_API_AQUI":
+    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "TU_CLAVE_API_AQUI":
         return "ERROR: La clave API de Google no ha sido configurada en el archivo config.py."
 
     try:
@@ -63,12 +60,11 @@ def generate_clinical_summary_with_ai(patient_id):
     if not historial:
         return "INFORME: El paciente no tiene un historial clínico registrado para analizar."
 
-    # Construir el prompt para la IA
     prompt_parts = [
         "**Instrucciones para la IA:**",
         "Eres un asistente médico experto. Analiza el siguiente historial clínico de un paciente y genera un informe conciso para el médico tratante. El informe debe estar en formato Markdown y estructurado de la siguiente manera:",
         "1.  **Resumen General del Paciente:** Un párrafo que sintetice el estado de salud general, condiciones preexistentes y cualquier dato demográfico relevante.",
-        "2.  **Puntos Clave del Historial:** Una lista de viñetas (bullet points) que resalten los diagnósticos más importantes, tratamientos recurrentes, alergias conocidas o condiciones crónicas significativas.",
+        "2.  **Puntos Clave del Historial:** Una lista de viñetas que resalten los diagnósticos más importantes, tratamientos recurrentes, alergias conocidas o condiciones crónicas significativas. Presta especial atención a la evolución de los signos vitales.",
         "3.  **Posibles Alertas o Seguimientos:** Una breve sección que sugiera posibles áreas de atención futura o seguimientos recomendados basados en el historial.",
         "\n---\n",
         "**DATOS DEL PACIENTE:**",
@@ -81,10 +77,17 @@ def generate_clinical_summary_with_ai(patient_id):
     ]
 
     for consulta in historial:
+        # --- AHORA INCLUIMOS LOS DATOS ESTRUCTURADOS ---
         consulta_details = [
             f"**Fecha:** {consulta['fecha_hora']}",
             f"**Médico:** {consulta['nombre_completo']} ({consulta['especialidad']})",
-            f"**Síntomas:** {consulta['sintomas'] or 'No detallados'}",
+            f"**Motivo de Consulta:** {consulta['motivo_consulta'] or 'No especificado'}",
+            "**Signos Vitales:**"
+            f"  - Temperatura: {str(consulta['temperatura']) + ' °C' if consulta['temperatura'] else 'N/A'}",
+            f"  - Presión Arterial: {consulta['presion_arterial'] or 'N/A'}",
+            f"  - Frec. Cardíaca: {str(consulta['frecuencia_cardiaca']) + ' lpm' if consulta['frecuencia_cardiaca'] else 'N/A'}",
+            f"  - Saturación O2: {str(consulta['saturacion_oxigeno']) + ' %' if consulta['saturacion_oxigeno'] else 'N/A'}",
+            f"**Síntomas Subjetivos:** {consulta['sintomas'] or 'No detallados'}",
             f"**Diagnóstico:** {consulta['diagnostico'] or 'No detallado'}",
             f"**Tratamiento:** {consulta['tratamiento'] or 'No detallado'}",
             "---"
@@ -94,7 +97,7 @@ def generate_clinical_summary_with_ai(patient_id):
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:

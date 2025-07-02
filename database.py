@@ -16,13 +16,34 @@ def crear_tablas():
     sql_horarios = "CREATE TABLE IF NOT EXISTS horarios_medicos (id INTEGER PRIMARY KEY AUTOINCREMENT, medico_id INTEGER NOT NULL, dia_semana INTEGER NOT NULL, hora_inicio TEXT NOT NULL, hora_fin TEXT NOT NULL, FOREIGN KEY (medico_id) REFERENCES medicos (id));"
     sql_pacientes = "CREATE TABLE IF NOT EXISTS pacientes (id INTEGER PRIMARY KEY AUTOINCREMENT, dni TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL, apellidos TEXT NOT NULL, fecha_nac TEXT, genero TEXT, telefono TEXT, email TEXT, historial_basico TEXT);"
     
-    # --- SENTENCIA SQL CORREGIDA ---
+    # --- SENTENCIA SQL MODIFICADA ---
+    # Se añaden campos para el historial clínico estructurado
     sql_citas = """
     CREATE TABLE IF NOT EXISTS citas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_id INTEGER NOT NULL, medico_id INTEGER NOT NULL,
-        fecha_hora TEXT NOT NULL, estado TEXT NOT NULL, 
-        sintomas TEXT, diagnostico TEXT, tratamiento TEXT, notas TEXT,
-        monto_pagado REAL, metodo_pago TEXT, aseguradora TEXT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        paciente_id INTEGER NOT NULL, 
+        medico_id INTEGER NOT NULL,
+        fecha_hora TEXT NOT NULL, 
+        estado TEXT NOT NULL, 
+        
+        -- Campos de pago
+        monto_pagado REAL, 
+        metodo_pago TEXT, 
+        aseguradora TEXT,
+        
+        -- Campos clínicos estructurados
+        motivo_consulta TEXT,
+        temperatura REAL,
+        presion_arterial TEXT,
+        frecuencia_cardiaca INTEGER,
+        saturacion_oxigeno INTEGER,
+        
+        -- Campos clínicos de texto libre
+        sintomas TEXT, 
+        diagnostico TEXT, 
+        tratamiento TEXT, 
+        notas TEXT,
+        
         FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
         FOREIGN KEY (medico_id) REFERENCES medicos (id)
     );
@@ -31,16 +52,26 @@ def crear_tablas():
     cursor.execute(sql_horarios); cursor.execute(sql_citas)
     conn.commit(); conn.close()
 
-def actualizar_consulta_clinica(cita_id, sintomas, diagnostico, tratamiento, notas):
+# --- FUNCIÓN MODIFICADA ---
+def actualizar_consulta_clinica(cita_id, motivo, temp, presion, fc, sat, sintomas, diagnostico, tratamiento, notas):
     conn = conectar_db(); cursor = conn.cursor()
-    query = "UPDATE citas SET sintomas = ?, diagnostico = ?, tratamiento = ?, notas = ? WHERE id = ?"
-    cursor.execute(query, (sintomas, diagnostico, tratamiento, notas, cita_id))
+    query = """
+    UPDATE citas 
+    SET motivo_consulta = ?, temperatura = ?, presion_arterial = ?, frecuencia_cardiaca = ?, 
+        saturacion_oxigeno = ?, sintomas = ?, diagnostico = ?, tratamiento = ?, notas = ? 
+    WHERE id = ?
+    """
+    cursor.execute(query, (motivo, temp, presion, fc, sat, sintomas, diagnostico, tratamiento, notas, cita_id))
     conn.commit(); conn.close()
     
+# --- FUNCIÓN MODIFICADA ---
 def obtener_historial_clinico_paciente(paciente_id):
     conn = conectar_db(); cursor = conn.cursor()
     query = """
-    SELECT c.fecha_hora, m.nombre_completo, m.especialidad, c.sintomas, c.diagnostico, c.tratamiento
+    SELECT 
+        c.fecha_hora, m.nombre_completo, m.especialidad, 
+        c.motivo_consulta, c.temperatura, c.presion_arterial, c.frecuencia_cardiaca, c.saturacion_oxigeno,
+        c.sintomas, c.diagnostico, c.tratamiento
     FROM citas c
     JOIN medicos m ON c.medico_id = m.id
     WHERE c.paciente_id = ? AND c.estado = 'Pagada'
