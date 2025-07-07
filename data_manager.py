@@ -15,42 +15,33 @@ def get_doctor_by_id(doctor_id): return database.obtener_medico_por_id(doctor_id
 def update_doctor(doctor_id, data): database.actualizar_medico(doctor_id, *data)
 def get_doctors_by_specialty(specialty): return database.obtener_medicos_por_especialidad(specialty)
 def get_doctor_schedules(doctor_id): return database.obtener_horarios_por_medico(doctor_id)
-<<<<<<< HEAD
-=======
 
 # --- Lógica de Citas ---
->>>>>>> origin/main
 def get_all_detailed_appointments(): return database.obtener_citas_detalladas()
 def create_appointment(data): database.agregar_cita(*data)
 def delete_appointment(appointment_id): database.eliminar_cita(appointment_id)
 def get_appointments_by_doctor_and_day(doctor_id, date_str): return database.obtener_citas_por_medico_y_dia(doctor_id, date_str)
 def get_appointment_by_id(appointment_id): return database.obtener_cita_completa_por_id(appointment_id)
-<<<<<<< HEAD
-def get_paid_appointments_for_clinical_record(filter_text=""): return database.obtener_historial_pagos()
-def save_clinical_record(appointment_id, data): database.actualizar_consulta_clinica(appointment_id, *data)
-def get_patient_clinical_history(patient_id): return database.obtener_historial_clinico_paciente(patient_id)
-=======
 
 # --- Lógica de Historial Clínico ---
 def get_paid_appointments_for_clinical_record(filter_text=""):
     all_payments = database.obtener_historial_pagos() 
     return all_payments
 
-# --- FUNCIÓN MODIFICADA ---
 def save_clinical_record(appointment_id, data):
+    # Llama a la versión actualizada que guarda los datos estructurados
     database.actualizar_consulta_clinica(appointment_id, *data)
 
 def get_patient_clinical_history(patient_id):
+    # Llama a la versión que obtiene los datos estructurados
     return database.obtener_historial_clinico_paciente(patient_id)
 
 # --- Lógica de Pagos ---
->>>>>>> origin/main
 def get_scheduled_appointments(filter_text=""): return database.obtener_citas_programadas(filter_text)
 def register_payment(appointment_id, data): database.registrar_pago(appointment_id, *data)
 def get_payment_history(): return database.obtener_historial_pagos()
 
-<<<<<<< HEAD
-# --- FUNCIONES PARA REPORTES ---
+# --- FUNCIONES PARA REPORTES (de la rama 'HEAD') ---
 def get_payment_method_distribution(start_date, end_date):
     """Obtiene la distribución de métodos de pago para el gráfico."""
     return database.obtener_distribucion_metodo_pago(start_date, end_date)
@@ -59,7 +50,6 @@ def get_insurance_usage_distribution(start_date, end_date):
     """Obtiene la distribución de uso de seguros para el gráfico."""
     return database.obtener_distribucion_uso_seguro(start_date, end_date)
 
-# NUEVAS FUNCIONES PARA KPIs
 def get_total_revenue(start_date, end_date):
     """Calcula los ingresos totales en un rango de fechas."""
     return database.calcular_ingresos_totales(start_date, end_date)
@@ -67,8 +57,8 @@ def get_total_revenue(start_date, end_date):
 def get_total_attended_appointments(start_date, end_date):
     """Cuenta las citas atendidas (pagadas) en un rango de fechas."""
     return database.contar_citas_atendidas(start_date, end_date)
-=======
-# --- FUNCIÓN DE IA MEJORADA ---
+
+# --- FUNCIÓN DE IA MEJORADA (de la rama 'origin/main') ---
 def generate_clinical_summary_with_ai(patient_id):
     """
     Genera un resumen clínico y puntos clave usando la IA de Google y los datos estructurados.
@@ -106,7 +96,7 @@ def generate_clinical_summary_with_ai(patient_id):
     ]
 
     for consulta in historial:
-        # --- AHORA INCLUIMOS LOS DATOS ESTRUCTURADOS ---
+        # --- Se incluyen los datos estructurados para un mejor análisis de la IA ---
         consulta_details = [
             f"**Fecha:** {consulta['fecha_hora']}",
             f"**Médico:** {consulta['nombre_completo']} ({consulta['especialidad']})",
@@ -126,9 +116,8 @@ def generate_clinical_summary_with_ai(patient_id):
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         return f"ERROR: Ocurrió un problema al comunicarse con la IA. Detalles: {e}"
->>>>>>> origin/main

@@ -1,9 +1,5 @@
 # ui_components/dashboard_window.py
-<<<<<<< HEAD
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QGridLayout, QLabel, QPushButton
-=======
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QGridLayout, QLabel, QPushButton, QMessageBox
->>>>>>> origin/main
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize
 
@@ -14,16 +10,17 @@ from .patient_module import VentanaGestionPacientes
 from .doctor_module import VentanaGestionMedicos
 from .appointment_module import VentanaGestionCitas
 from .payment_module import VentanaGestionPagos
-from .reports_module import VentanaGestionReportes # NUEVA IMPORTACIÓN
+from .reports_module import VentanaGestionReportes
 from styles import apply_shadow_effect
 
 
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("GesClínica - Panel Principal"); self.setGeometry(100, 100, 800, 700) # Un poco más alto
+        self.setWindowTitle("GesClínica - Panel Principal"); self.setGeometry(100, 100, 800, 700)
         self.ventanas_abiertas = {}
         
+        # Atributos para el servicio de recordatorios
         self.reminder_thread = None
         self.shutdown_event = threading.Event()
         self.is_reminder_service_running = False
@@ -34,21 +31,21 @@ class Dashboard(QMainWindow):
         layout.addWidget(titulo)
         menu_layout = QGridLayout(); menu_layout.setSpacing(30); layout.addLayout(menu_layout)
         
+        # Creación de todos los botones
         btn_citas = self.crear_boton_menu("Agendar Citas", "icons/appointment.png", self.abrir_gestion_citas)
         btn_pacientes = self.crear_boton_menu("Pacientes", "icons/patient.png", self.abrir_gestion_pacientes)
         btn_medicos = self.crear_boton_menu("Médicos", "icons/doctor.png", self.abrir_gestion_medicos)
         btn_pagos = self.crear_boton_menu("Pagos y Boletas", "icons/payment.png", self.abrir_gestion_pagos)
-        # NUEVO BOTÓN
         btn_reportes = self.crear_boton_menu("Reportes", "icons/reports.png", self.abrir_gestion_reportes)
         btn_salir = self.crear_boton_menu("Salir", "icons/exit.png", self.close, es_rojo=True)
         
-        menu_layout.addWidget(btn_citas, 0, 0); menu_layout.addWidget(btn_pagos, 0, 1)
-        menu_layout.addWidget(btn_pacientes, 1, 0); menu_layout.addWidget(btn_medicos, 1, 1)
-<<<<<<< HEAD
-        menu_layout.addWidget(btn_reportes, 2, 0) # Añadido
-        menu_layout.addWidget(btn_salir, 2, 1) # Movido
-=======
-        menu_layout.addWidget(btn_salir, 2, 0, 1, 2)
+        # Layout de botones unificado y ordenado
+        menu_layout.addWidget(btn_citas, 0, 0)
+        menu_layout.addWidget(btn_pagos, 0, 1)
+        menu_layout.addWidget(btn_pacientes, 1, 0)
+        menu_layout.addWidget(btn_medicos, 1, 1)
+        menu_layout.addWidget(btn_reportes, 2, 0)
+        menu_layout.addWidget(btn_salir, 2, 1)
 
     def start_reminder_service(self):
         if not ENABLE_VOICE_REMINDERS:
@@ -78,7 +75,6 @@ class Dashboard(QMainWindow):
             self.reminder_thread.join(timeout=5)
         self.is_reminder_service_running = False
         print("⏹️  Servicio de recordatorios detenido por el Dashboard.")
->>>>>>> origin/main
 
     def crear_boton_menu(self, texto, icon_path, funcion_click, es_rojo=False):
         btn = QPushButton(QIcon(icon_path), f"  {texto}"); btn.setIconSize(QSize(48, 48)); btn.setMinimumHeight(120)
@@ -98,6 +94,7 @@ class Dashboard(QMainWindow):
     def abrir_gestion_citas(self):
         nombre_ventana = "citas"
         if nombre_ventana not in self.ventanas_abiertas or not self.ventanas_abiertas[nombre_ventana].isVisible():
+            # Se pasa 'self' como 'parent' para que la ventana de citas pueda controlar el servicio
             self.ventanas_abiertas[nombre_ventana] = VentanaGestionCitas(parent=self)
             self.ventanas_abiertas[nombre_ventana].show()
         else:
@@ -107,11 +104,9 @@ class Dashboard(QMainWindow):
     def abrir_gestion_pacientes(self): self.abrir_ventana("pacientes", VentanaGestionPacientes)
     def abrir_gestion_medicos(self): self.abrir_ventana("medicos", VentanaGestionMedicos)
     def abrir_gestion_pagos(self): self.abrir_ventana("pagos", VentanaGestionPagos)
-<<<<<<< HEAD
-    def abrir_gestion_reportes(self): self.abrir_ventana("reportes", VentanaGestionReportes) # NUEVO MÉTODO
-=======
+    def abrir_gestion_reportes(self): self.abrir_ventana("reportes", VentanaGestionReportes)
 
     def closeEvent(self, event):
+        # Asegurarse de detener el servicio al cerrar la aplicación
         self.stop_reminder_service()
         event.accept()
->>>>>>> origin/main
