@@ -15,8 +15,6 @@ def crear_tablas():
     sql_horarios = "CREATE TABLE IF NOT EXISTS horarios_medicos (id INTEGER PRIMARY KEY AUTOINCREMENT, medico_id INTEGER NOT NULL, dia_semana INTEGER NOT NULL, hora_inicio TEXT NOT NULL, hora_fin TEXT NOT NULL, FOREIGN KEY (medico_id) REFERENCES medicos (id));"
     sql_pacientes = "CREATE TABLE IF NOT EXISTS pacientes (id INTEGER PRIMARY KEY AUTOINCREMENT, dni TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL, apellidos TEXT NOT NULL, fecha_nac TEXT, genero TEXT, telefono TEXT, email TEXT, historial_basico TEXT);"
     
-    # --- TABLA CITAS UNIFICADA ---
-    # Incluye campos de ambas ramas: clínicos, de pago, estructurados y de recordatorio.
     sql_citas = """
     CREATE TABLE IF NOT EXISTS citas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -49,7 +47,6 @@ def crear_tablas():
     cursor.execute(sql_pacientes); cursor.execute(sql_medicos); cursor.execute(sql_horarios); cursor.execute(sql_citas)
     conn.commit(); conn.close()
 
-# --- FUNCIONES DE LA RAMA 'origin/main' (Recordatorios y Datos Clínicos Estructurados) ---
 def marcar_recordatorio_enviado(cita_id):
     conn = conectar_db(); cursor = conn.cursor()
     query = "UPDATE citas SET recordatorio_enviado = 1 WHERE id = ?"
@@ -75,7 +72,6 @@ def obtener_historial_clinico_paciente(paciente_id):
     """
     cursor.execute(query, (paciente_id,)); historial = cursor.fetchall(); conn.close(); return historial
 
-# --- FUNCIONES DE LA RAMA 'HEAD' (KPIs y Reportes) ---
 def calcular_ingresos_totales(start_date, end_date):
     conn = conectar_db(); cursor = conn.cursor()
     query = "SELECT SUM(monto_pagado) as total FROM citas WHERE estado = 'Pagada' AND date(fecha_hora) BETWEEN ? AND ?"
@@ -116,8 +112,6 @@ def obtener_distribucion_uso_seguro(start_date, end_date):
     data = cursor.fetchall(); conn.close()
     return data
 
-
-# --- FUNCIONES COMUNES UNIFICADAS ---
 def agregar_cita(paciente_id, medico_id, fecha_hora):
     conn = conectar_db(); cursor = conn.cursor()
     cursor.execute("INSERT INTO citas (paciente_id, medico_id, fecha_hora, estado) VALUES (?, ?, ?, 'Programada')", (paciente_id, medico_id, fecha_hora)); conn.commit(); conn.close()
@@ -156,6 +150,7 @@ def obtener_historial_pagos():
     """
     cursor.execute(query); pagos = cursor.fetchall(); conn.close(); return pagos
 
+# --- Resto de funciones existentes (sin cambios) ---
 def agregar_medico(nombre, especialidad, telefono, horarios):
     conn = conectar_db(); cursor = conn.cursor()
     cursor.execute("INSERT INTO medicos (nombre_completo, especialidad, telefono) VALUES (?, ?, ?)", (nombre, especialidad, telefono)); medico_id = cursor.lastrowid
@@ -221,3 +216,41 @@ def obtener_cita_completa_por_id(cita_id):
 def actualizar_estado_cita(cita_id, nuevo_estado):
     conn = conectar_db(); cursor = conn.cursor()
     cursor.execute("UPDATE citas SET estado = ? WHERE id = ?", (nuevo_estado, cita_id)); conn.commit(); conn.close()
+    
+# --- NUEVAS FUNCIONES PARA REPORTES AVANZADOS ---
+
+def obtener_rendimiento_por_especialidad(start_date, end_date):
+    """Obtiene ingresos y conteo de citas agrupados por especialidad."""
+    conn = conectar_db(); cursor = conn.cursor()
+    query = """
+    SELECT
+        m.especialidad,
+        SUM(c.monto_pagado) as ingresos_totales,
+        COUNT(c.id) as numero_citas
+    FROM citas c
+    JOIN medicos m ON c.medico_id = m.id
+    WHERE c.estado = 'Pagada' AND date(c.fecha_hora) BETWEEN ? AND ?
+    GROUP BY m.especialidad
+    ORDER BY ingresos_totales DESC
+    """
+    cursor.execute(query, (start_date, end_date))
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+def obtener_citas_por_dia(start_date, end_date):
+    """Obtiene el conteo de citas por día para el gráfico de tendencias."""
+    conn = conectar_db(); cursor = conn.cursor()
+    query = """
+    SELECT
+        date(fecha_hora) as fecha,
+        COUNT(id) as numero_citas
+    FROM citas
+    WHERE estado = 'Pagada' AND date(fecha_hora) BETWEEN ? AND ?
+    GROUP BY fecha
+    ORDER BY fecha ASC
+    """
+    cursor.execute(query, (start_date, end_date))
+    data = cursor.fetchall()
+    conn.close()
+    return data
