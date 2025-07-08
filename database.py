@@ -11,42 +11,61 @@ def conectar_db():
 
 def crear_tablas():
     conn = conectar_db(); cursor = conn.cursor()
+    # ... (Tablas existentes sin cambios) ...
     sql_medicos = "CREATE TABLE IF NOT EXISTS medicos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre_completo TEXT NOT NULL, especialidad TEXT NOT NULL, telefono TEXT);"
     sql_horarios = "CREATE TABLE IF NOT EXISTS horarios_medicos (id INTEGER PRIMARY KEY AUTOINCREMENT, medico_id INTEGER NOT NULL, dia_semana INTEGER NOT NULL, hora_inicio TEXT NOT NULL, hora_fin TEXT NOT NULL, FOREIGN KEY (medico_id) REFERENCES medicos (id));"
     sql_pacientes = "CREATE TABLE IF NOT EXISTS pacientes (id INTEGER PRIMARY KEY AUTOINCREMENT, dni TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL, apellidos TEXT NOT NULL, fecha_nac TEXT, genero TEXT, telefono TEXT, email TEXT, historial_basico TEXT);"
-    
     sql_citas = """
     CREATE TABLE IF NOT EXISTS citas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        paciente_id INTEGER NOT NULL, 
-        medico_id INTEGER NOT NULL,
-        fecha_hora TEXT NOT NULL, 
-        estado TEXT NOT NULL, 
-        
-        monto_pagado REAL, 
-        metodo_pago TEXT, 
-        aseguradora TEXT,
-        
-        motivo_consulta TEXT,
-        temperatura REAL,
-        presion_arterial TEXT,
-        frecuencia_cardiaca INTEGER,
-        saturacion_oxigeno INTEGER,
-        
-        sintomas TEXT, 
-        diagnostico TEXT, 
-        tratamiento TEXT, 
-        notas TEXT,
-        
+        id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_id INTEGER NOT NULL, medico_id INTEGER NOT NULL,
+        fecha_hora TEXT NOT NULL, estado TEXT NOT NULL, monto_pagado REAL, metodo_pago TEXT, aseguradora TEXT,
+        motivo_consulta TEXT, temperatura REAL, presion_arterial TEXT, frecuencia_cardiaca INTEGER,
+        saturacion_oxigeno INTEGER, sintomas TEXT, diagnostico TEXT, tratamiento TEXT, notas TEXT,
         recordatorio_enviado INTEGER DEFAULT 0 NOT NULL,
-        
-        FOREIGN KEY (paciente_id) REFERENCES pacientes (id),
-        FOREIGN KEY (medico_id) REFERENCES medicos (id)
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (id), FOREIGN KEY (medico_id) REFERENCES medicos (id)
     );
     """
+    
+    # --- NUEVA TABLA PARA ANÁLISIS DE LABORATORIO ---
+    sql_analisis = """
+    CREATE TABLE IF NOT EXISTS analisis_laboratorio (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paciente_id INTEGER NOT NULL,
+        tipo_analisis TEXT NOT NULL,
+        fecha_analisis TEXT NOT NULL,
+        resultados_texto TEXT,
+        ruta_archivo TEXT,
+        resultados_ia_json TEXT, -- Para almacenar el JSON de la predicción de IA
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (id)
+    );
+    """
+
     cursor.execute(sql_pacientes); cursor.execute(sql_medicos); cursor.execute(sql_horarios); cursor.execute(sql_citas)
+    cursor.execute(sql_analisis) # Ejecutar la creación de la nueva tabla
     conn.commit(); conn.close()
 
+# --- FUNCIONES PARA EL NUEVO MÓDULO DE LABORATORIO ---
+def agregar_analisis_laboratorio(paciente_id, tipo, fecha, resultados, archivo, ia_json):
+    conn = conectar_db(); cursor = conn.cursor()
+    query = "INSERT INTO analisis_laboratorio (paciente_id, tipo_analisis, fecha_analisis, resultados_texto, ruta_archivo, resultados_ia_json) VALUES (?, ?, ?, ?, ?, ?)"
+    cursor.execute(query, (paciente_id, tipo, fecha, resultados, archivo, ia_json))
+    conn.commit(); conn.close()
+
+def obtener_analisis_por_paciente(paciente_id):
+    conn = conectar_db(); cursor = conn.cursor()
+    query = "SELECT * FROM analisis_laboratorio WHERE paciente_id = ? ORDER BY fecha_analisis DESC"
+    cursor.execute(query, (paciente_id,))
+    analisis = cursor.fetchall()
+    conn.close()
+    return analisis
+
+def eliminar_analisis(analisis_id):
+    conn = conectar_db(); cursor = conn.cursor()
+    query = "DELETE FROM analisis_laboratorio WHERE id = ?"
+    cursor.execute(query, (analisis_id,))
+    conn.commit(); conn.close()
+
+# ... (El resto de funciones de database.py se mantienen sin cambios) ...
 def marcar_recordatorio_enviado(cita_id):
     conn = conectar_db(); cursor = conn.cursor()
     query = "UPDATE citas SET recordatorio_enviado = 1 WHERE id = ?"
@@ -71,7 +90,6 @@ def obtener_historial_clinico_paciente(paciente_id):
     ORDER BY c.fecha_hora DESC
     """
     cursor.execute(query, (paciente_id,)); historial = cursor.fetchall(); conn.close(); return historial
-
 def calcular_ingresos_totales(start_date, end_date):
     conn = conectar_db(); cursor = conn.cursor()
     query = "SELECT SUM(monto_pagado) as total FROM citas WHERE estado = 'Pagada' AND date(fecha_hora) BETWEEN ? AND ?"
@@ -150,7 +168,6 @@ def obtener_historial_pagos():
     """
     cursor.execute(query); pagos = cursor.fetchall(); conn.close(); return pagos
 
-# --- Resto de funciones existentes (sin cambios) ---
 def agregar_medico(nombre, especialidad, telefono, horarios):
     conn = conectar_db(); cursor = conn.cursor()
     cursor.execute("INSERT INTO medicos (nombre_completo, especialidad, telefono) VALUES (?, ?, ?)", (nombre, especialidad, telefono)); medico_id = cursor.lastrowid
@@ -217,8 +234,6 @@ def actualizar_estado_cita(cita_id, nuevo_estado):
     conn = conectar_db(); cursor = conn.cursor()
     cursor.execute("UPDATE citas SET estado = ? WHERE id = ?", (nuevo_estado, cita_id)); conn.commit(); conn.close()
     
-# --- NUEVAS FUNCIONES PARA REPORTES AVANZADOS ---
-
 def obtener_rendimiento_por_especialidad(start_date, end_date):
     """Obtiene ingresos y conteo de citas agrupados por especialidad."""
     conn = conectar_db(); cursor = conn.cursor()

@@ -1,11 +1,32 @@
 # data_manager.py
 import database
+import ct_scan_analyzer # <-- NUEVA IMPORTACIÓN
+import json # <-- NUEVA IMPORTACIÓN
 from config import ADMIN_USER, ADMIN_PASS, GOOGLE_API_KEY
 import google.generativeai as genai
 
-# --- Funciones de autenticación y gestión de datos (sin cambios) ---
+# ... (Funciones existentes sin cambios) ...
 def verify_credentials(username, password): return username == ADMIN_USER and password == ADMIN_PASS
 def get_all_patients(filter_text=""): return database.obtener_pacientes(filter_text)
+# ... etc ...
+
+# --- NUEVAS FUNCIONES PARA EL MÓDULO DE LABORATORIO ---
+def add_lab_test(paciente_id, tipo, fecha, resultados, archivo, ia_results_dict):
+    ia_json = json.dumps(ia_results_dict) if ia_results_dict else None
+    database.agregar_analisis_laboratorio(paciente_id, tipo, fecha, resultados, archivo, ia_json)
+
+def get_lab_tests_for_patient(paciente_id):
+    return database.obtener_analisis_por_paciente(paciente_id)
+
+def delete_lab_test(analisis_id):
+    database.eliminar_analisis(analisis_id)
+
+def analyze_ct_scan_image(image_path):
+    """Llama al módulo analizador y devuelve los resultados."""
+    return ct_scan_analyzer.analyze_ct_scan(image_path)
+
+
+# ... (El resto de funciones de data_manager.py se mantienen sin cambios) ...
 def add_patient(data): database.agregar_paciente(*data)
 def get_patient_by_id(patient_id): return database.obtener_paciente_por_id(patient_id)
 def update_patient(patient_id, data): database.actualizar_paciente(patient_id, *data)
@@ -58,34 +79,6 @@ def get_performance_by_specialty(start_date, end_date):
 def get_appointments_per_day(start_date, end_date):
     return database.obtener_citas_por_dia(start_date, end_date)
 
-
-# --- FUNCIÓN DE IA MEJORADA (para historial clínico de paciente) ---
-def generate_clinical_summary_with_ai(patient_id):
-    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "TU_CLAVE_API_AQUI":
-        return "ERROR: La clave API de Google no ha sido configurada en el archivo config.py."
-    # (El resto de la función se mantiene igual, se omite por brevedad)
-    try:
-        genai.configure(api_key=GOOGLE_API_KEY)
-    except Exception as e:
-        return f"ERROR: Fallo al configurar la API de Google. Verifica la clave. Detalles: {e}"
-
-    paciente = get_patient_by_id(patient_id)
-    historial = get_patient_clinical_history(patient_id)
-
-    if not paciente or not historial:
-        return "INFORME: No hay datos suficientes para generar un resumen."
-
-    # ... (Prompt y lógica de la función original)
-    prompt_parts = [
-        "**Instrucciones para la IA:**",
-        "Eres un asistente médico experto. Analiza el siguiente historial clínico de un paciente y genera un informe conciso para el médico tratante...",
-        # ... (el resto del prompt)
-    ]
-    # ... (el resto de la lógica de la función)
-    # Esta función no se modifica, pero es bueno tenerla aquí para el contexto.
-    return "Función de resumen clínico de paciente no modificada." # Placeholder
-
-# --- NUEVA FUNCIÓN DE IA PARA ANÁLISIS DE REPORTES ---
 def generate_report_summary_with_ai(start_date, end_date, kpis, specialty_data):
     """
     Genera un análisis de negocio sobre el reporte usando la IA de Google.

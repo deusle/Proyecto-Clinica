@@ -1,12 +1,17 @@
 # ui_components/patient_module.py
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QPushButton, QLabel, QMessageBox, QDialog, QFormLayout, QDateEdit, QComboBox, QTextEdit, QDialogButtonBox, QHeaderView, QTreeWidget, QTreeWidgetItem, QApplication
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, 
+                               QLineEdit, QPushButton, QLabel, QMessageBox, QDialog, QFormLayout, 
+                               QDateEdit, QComboBox, QTextEdit, QDialogButtonBox, QHeaderView, 
+                               QTreeWidget, QTreeWidgetItem, QApplication)
 from PySide6.QtGui import QIcon, QCursor
 from PySide6.QtCore import QDate, Qt
 
 import data_manager
+from .lab_module import VentanaGestionAnalisis # <-- NUEVA IMPORTACIÓN
 
 # --- Diálogo de Paciente (sin cambios) ---
 class DialogoPaciente(QDialog):
+    # ... (código sin cambios)
     def __init__(self, paciente_id=None, parent=None):
         super().__init__(parent); self.paciente_id = paciente_id; self.setWindowTitle("Gestionar Paciente"); self.layout = QFormLayout(self)
         self.dni, self.nombre, self.apellidos = QLineEdit(), QLineEdit(), QLineEdit()
@@ -23,8 +28,10 @@ class DialogoPaciente(QDialog):
         if p: self.dni.setText(p['dni']); self.nombre.setText(p['nombre']); self.apellidos.setText(p['apellidos']); self.fecha_nac.setDate(QDate.fromString(p['fecha_nac'], "yyyy-MM-dd")); self.genero.setCurrentText(p['genero']); self.telefono.setText(p['telefono']); self.email.setText(p['email']); self.historial.setText(p['historial_basico'])
     def get_data(self): return (self.dni.text(), self.nombre.text(), self.apellidos.text(), self.fecha_nac.date().toString("yyyy-MM-dd"), self.genero.currentText(), self.telefono.text(), self.email.text(), self.historial.toPlainText())
 
-# --- Diálogo para mostrar el informe de la IA (sin cambios) ---
+
+# --- Diálogo Informe IA y Ventana Historial (sin cambios) ---
 class DialogoInformeIA(QDialog):
+    # ... (código sin cambios)
     def __init__(self, texto_informe, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Informe Clínico Generado por IA")
@@ -36,8 +43,8 @@ class DialogoInformeIA(QDialog):
         botones = QDialogButtonBox(QDialogButtonBox.Ok); botones.accepted.connect(self.accept)
         layout.addWidget(info_label); layout.addWidget(self.text_edit); layout.addWidget(botones)
 
-# --- Ventana de Historial Clínico MODIFICADA ---
 class VentanaHistorialClinico(QDialog):
+    # ... (código sin cambios)
     def __init__(self, paciente_id, paciente_nombre, parent=None):
         super().__init__(parent)
         self.paciente_id = paciente_id
@@ -103,39 +110,57 @@ class VentanaHistorialClinico(QDialog):
         else:
             dialogo = DialogoInformeIA(informe, self); dialogo.exec()
 
-# --- Ventana de Gestión de Pacientes (sin cambios) ---
+# --- Ventana de Gestión de Pacientes (MODIFICADA) ---
 class VentanaGestionPacientes(QWidget):
     def __init__(self):
-        super().__init__(); self.setWindowTitle("Gestión de Pacientes"); self.setGeometry(150, 150, 1100, 600)
+        super().__init__()
+        self.setWindowTitle("Gestión de Pacientes"); self.setGeometry(150, 150, 1200, 600)
         layout = QVBoxLayout(self)
+        
+        # --- Controles ---
         controles_layout = QHBoxLayout()
         self.filtro_paciente = QLineEdit(placeholderText="Buscar por nombre, DNI..."); self.filtro_paciente.textChanged.connect(self.cargar_pacientes)
         btn_agregar = QPushButton(QIcon("icons/add.png"), " Añadir Paciente"); btn_agregar.clicked.connect(self.abrir_dialogo_paciente)
         btn_editar = QPushButton(QIcon("icons/edit.png"), " Editar Paciente"); btn_editar.clicked.connect(self.editar_paciente_seleccionado)
         btn_historial = QPushButton(QIcon("icons/history.png"), " Ver Historial Clínico"); btn_historial.clicked.connect(self.ver_historial_clinico)
+        
+        # --- NUEVO BOTÓN ---
+        btn_analisis = QPushButton(QIcon("icons/lab.png"), " Análisis de Laboratorio")
+        btn_analisis.clicked.connect(self.gestionar_analisis_paciente)
+
         controles_layout.addWidget(QLabel("<b>Buscar:</b>")); controles_layout.addWidget(self.filtro_paciente); controles_layout.addStretch()
-        controles_layout.addWidget(btn_agregar); controles_layout.addWidget(btn_editar); controles_layout.addWidget(btn_historial)
+        controles_layout.addWidget(btn_agregar); controles_layout.addWidget(btn_editar)
+        controles_layout.addWidget(btn_historial); controles_layout.addWidget(btn_analisis)
+        
         self.tabla_pacientes = QTableWidget(columnCount=8, editTriggers=QTableWidget.NoEditTriggers, selectionBehavior=QTableWidget.SelectRows, alternatingRowColors=True)
         self.tabla_pacientes.setHorizontalHeaderLabels(["ID", "DNI", "Nombre", "Apellidos", "Fecha Nac.", "Género", "Teléfono", "Email"])
         self.tabla_pacientes.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addLayout(controles_layout); layout.addWidget(self.tabla_pacientes)
         self.cargar_pacientes()
+        
     def cargar_pacientes(self):
+        # ... (código sin cambios)
         pacientes = data_manager.get_all_patients(self.filtro_paciente.text())
         self.tabla_pacientes.setRowCount(len(pacientes))
         for r, pac in enumerate(pacientes):
             for c, val in enumerate(pac):
                 if c < 8: self.tabla_pacientes.setItem(r, c, QTableWidgetItem(str(val)))
+        
     def abrir_dialogo_paciente(self):
+        # ... (código sin cambios)
         dialogo = DialogoPaciente(parent=self)
         if dialogo.exec(): data_manager.add_patient(dialogo.get_data()); QMessageBox.information(self, "Éxito", "Paciente agregado."); self.cargar_pacientes()
+
     def editar_paciente_seleccionado(self):
+        # ... (código sin cambios)
         row = self.tabla_pacientes.currentRow()
         if row < 0: return QMessageBox.warning(self, "Atención", "Seleccione un paciente.")
         paciente_id = int(self.tabla_pacientes.item(row, 0).text())
         dialogo = DialogoPaciente(paciente_id, self)
         if dialogo.exec(): data_manager.update_patient(paciente_id, dialogo.get_data()); QMessageBox.information(self, "Éxito", "Paciente actualizado."); self.cargar_pacientes()
+
     def ver_historial_clinico(self):
+        # ... (código sin cambios)
         row = self.tabla_pacientes.currentRow()
         if row < 0: return QMessageBox.warning(self, "Atención", "Seleccione un paciente para ver su historial.")
         paciente_id = int(self.tabla_pacientes.item(row, 0).text())
@@ -144,3 +169,18 @@ class VentanaGestionPacientes(QWidget):
         paciente_nombre = f"{nombre} {apellidos}"
         self.historial_window = VentanaHistorialClinico(paciente_id, paciente_nombre, self)
         self.historial_window.exec()
+        
+    # --- NUEVO MÉTODO ---
+    def gestionar_analisis_paciente(self):
+        row = self.tabla_pacientes.currentRow()
+        if row < 0:
+            return QMessageBox.warning(self, "Atención", "Seleccione un paciente para gestionar sus análisis.")
+            
+        paciente_id = int(self.tabla_pacientes.item(row, 0).text())
+        nombre = self.tabla_pacientes.item(row, 2).text()
+        apellidos = self.tabla_pacientes.item(row, 3).text()
+        paciente_nombre = f"{nombre} {apellidos}"
+        
+        # Abrir la nueva ventana de gestión de análisis
+        self.analisis_window = VentanaGestionAnalisis(paciente_id, paciente_nombre, self)
+        self.analisis_window.exec()
