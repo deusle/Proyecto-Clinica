@@ -12,8 +12,7 @@ DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", 
 ADMIN_USER = "admin"
 ADMIN_PASS = "admin"
 
-<<<<<<< HEAD
-# NUEVO: Información de la Clínica para la Boleta
+# Información de la Clínica para la Boleta
 CLINICA_INFO = {
     "nombre": "GesClínica S.A.C.",
     "ruc": "20123456789",
@@ -22,7 +21,7 @@ CLINICA_INFO = {
     "email": "contacto@gesclinica.com",
     "logo_path": "icons/logo.png"
 }
-=======
+
 # --- MÓDULO DE RECORDATORIOS POR VOZ ---
 ENABLE_VOICE_REMINDERS = True
 
@@ -39,4 +38,3 @@ TWILIO_FLOW_SID = os.getenv("TWILIO_FLOW_SID")
 # Verificación opcional para ayudar a depurar si faltan claves
 if ENABLE_VOICE_REMINDERS and not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, TWILIO_FLOW_SID]):
     print("⚠️ ADVERTENCIA: Faltan una o más credenciales de Twilio en el archivo .env. El servicio de recordatorios podría fallar.")
->>>>>>> origin/main
