@@ -117,7 +117,7 @@ def generate_report_summary_with_ai(start_date, end_date, kpis, specialty_data):
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('gemini-2.5-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
