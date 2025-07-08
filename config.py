@@ -12,6 +12,16 @@ DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", 
 ADMIN_USER = "admin"
 ADMIN_PASS = "admin"
 
+# Información de la Clínica para la Boleta
+CLINICA_INFO = {
+    "nombre": "GesClínica S.A.C.",
+    "ruc": "20123456789",
+    "direccion": "Av. Principal 123, San Isidro, Lima, Perú",
+    "telefono": "(01) 555-1234",
+    "email": "contacto@gesclinica.com",
+    "logo_path": "icons/logo.png"
+}
+
 # --- MÓDULO DE RECORDATORIOS POR VOZ ---
 ENABLE_VOICE_REMINDERS = True
 
