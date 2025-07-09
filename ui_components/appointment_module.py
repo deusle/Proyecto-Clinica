@@ -14,6 +14,10 @@ class DialogoCrearCita(QDialog):
         self.layout = QFormLayout(self)
         self.paciente_combo = QComboBox(); self.especialidad_combo = QComboBox(); self.especialidad_combo.addItems(ESPECIALIDADES)
         self.medico_combo = QComboBox(); self.calendario = QCalendarWidget(); self.hora_combo = QComboBox()
+        
+        # MODIFICADO: No permitir seleccionar fechas pasadas
+        self.calendario.setMinimumDate(QDate.currentDate())
+        
         self.layout.addRow("<b>Paciente:</b>", self.paciente_combo); self.layout.addRow("<b>Especialidad:</b>", self.especialidad_combo)
         self.layout.addRow("<b>Médico:</b>", self.medico_combo); self.layout.addRow(self.calendario)
         self.layout.addRow("<b>Hora Disponible:</b>", self.hora_combo)
@@ -22,18 +26,22 @@ class DialogoCrearCita(QDialog):
         self.calendario.selectionChanged.connect(self.actualizar_horas_disponibles); self.calendario.currentPageChanged.connect(self.pintar_mes_actual)
         self.botones.accepted.connect(self.accept); self.botones.rejected.connect(self.reject)
         self.cargar_pacientes(); self.actualizar_medicos()
+
     def cargar_pacientes(self):
         for p in data_manager.get_all_patients(): self.paciente_combo.addItem(f"{p['nombre']} {p['apellidos']} (DNI: {p['dni']})", userData=p['id'])
+
     def get_data(self):
         hora = self.hora_combo.currentText()
         if not hora: return None
         fecha_hora = f"{self.calendario.selectedDate().toString('yyyy-MM-dd')} {hora}:00"
         return (self.paciente_combo.currentData(), self.medico_combo.currentData(), fecha_hora)
+
     def actualizar_medicos(self, especialidad=None):
         self.medico_combo.blockSignals(True); self.medico_combo.clear()
         especialidad = especialidad or self.especialidad_combo.currentText()
         for m in data_manager.get_doctors_by_specialty(especialidad): self.medico_combo.addItem(m['nombre_completo'], userData=m['id'])
         self.medico_combo.blockSignals(False); self.pintar_mes_actual()
+
     def pintar_mes_actual(self):
         medico_id = self.medico_combo.currentData(); year = self.calendario.yearShown(); month = self.calendario.monthShown()
         formato_vacio = QTextCharFormat()
@@ -43,7 +51,13 @@ class DialogoCrearCita(QDialog):
         formato_verde = QTextCharFormat(); formato_verde.setBackground(QBrush(QColor("#a8e6cf"))); formato_rojo = QTextCharFormat(); formato_rojo.setBackground(QBrush(QColor("#ff8a80"))); formato_negro = QTextCharFormat(); formato_negro.setBackground(QBrush(QColor("#e0e0e0")))
         dias_en_mes = QDate(year, month, 1).daysInMonth()
         for day in range(1, dias_en_mes + 1):
-            fecha = QDate(year, month, day); dia_semana = fecha.dayOfWeek() - 1 
+            fecha = QDate(year, month, day)
+            # Solo procesar fechas a partir de hoy
+            if fecha < QDate.currentDate():
+                self.calendario.setDateTextFormat(fecha, formato_negro)
+                continue
+            
+            dia_semana = fecha.dayOfWeek() - 1 
             if dia_semana in horarios_medico:
                 citas_del_dia = data_manager.get_appointments_by_doctor_and_day(medico_id, fecha.toString("yyyy-MM-dd"))
                 inicio = datetime.strptime(horarios_medico[dia_semana]['inicio'], '%H:%M').time(); fin = datetime.strptime(horarios_medico[dia_semana]['fin'], '%H:%M').time()
@@ -52,17 +66,32 @@ class DialogoCrearCita(QDialog):
                 else: self.calendario.setDateTextFormat(fecha, formato_verde)
             else: self.calendario.setDateTextFormat(fecha, formato_negro)
         self.actualizar_horas_disponibles()
+
+    # MODIFICADO: Para no mostrar horas que ya pasaron en el día actual
     def actualizar_horas_disponibles(self):
         self.hora_combo.clear(); medico_id = self.medico_combo.currentData(); fecha_seleccionada = self.calendario.selectedDate()
         if not medico_id: return
+        
         horarios_medico = data_manager.get_doctor_schedules(medico_id)
         dia_semana = fecha_seleccionada.dayOfWeek() - 1
+        
         if dia_semana in horarios_medico:
             citas_ocupadas = [datetime.strptime(c, '%Y-%m-%d %H:%M:%S').time() for c in data_manager.get_appointments_by_doctor_and_day(medico_id, fecha_seleccionada.toString("yyyy-MM-dd"))]
-            hora_actual = datetime.strptime(horarios_medico[dia_semana]['inicio'], '%H:%M'); hora_fin = datetime.strptime(horarios_medico[dia_semana]['fin'], '%H:%M')
+            
+            hora_actual = datetime.strptime(horarios_medico[dia_semana]['inicio'], '%H:%M')
+            hora_fin = datetime.strptime(horarios_medico[dia_semana]['fin'], '%H:%M')
+            
+            # Si la fecha es hoy, no mostrar horas que ya pasaron
+            es_hoy = (fecha_seleccionada == QDate.currentDate())
+            hora_sistema = datetime.now().time()
+            
             while hora_actual < hora_fin:
-                if hora_actual.time() not in citas_ocupadas: self.hora_combo.addItem(hora_actual.strftime('%H:%M'))
+                if hora_actual.time() not in citas_ocupadas:
+                    # Comprobar si la hora ya pasó (solo si es hoy)
+                    if not es_hoy or hora_actual.time() > hora_sistema:
+                        self.hora_combo.addItem(hora_actual.strftime('%H:%M'))
                 hora_actual += timedelta(minutes=20)
+
 
 class VentanaGestionCitas(QWidget):
     def __init__(self, parent=None):

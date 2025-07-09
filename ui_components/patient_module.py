@@ -5,9 +5,10 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
                                QTreeWidget, QTreeWidgetItem, QApplication)
 from PySide6.QtGui import QIcon, QCursor
 from PySide6.QtCore import QDate, Qt
+from datetime import datetime
 
 import data_manager
-from .lab_module import VentanaGestionAnalisis # <-- NUEVA IMPORTACIÓN
+from .lab_module import VentanaGestionAnalisis
 
 # --- Diálogo de Paciente (sin cambios) ---
 class DialogoPaciente(QDialog):
@@ -123,8 +124,6 @@ class VentanaGestionPacientes(QWidget):
         btn_agregar = QPushButton(QIcon("icons/add.png"), " Añadir Paciente"); btn_agregar.clicked.connect(self.abrir_dialogo_paciente)
         btn_editar = QPushButton(QIcon("icons/edit.png"), " Editar Paciente"); btn_editar.clicked.connect(self.editar_paciente_seleccionado)
         btn_historial = QPushButton(QIcon("icons/history.png"), " Ver Historial Clínico"); btn_historial.clicked.connect(self.ver_historial_clinico)
-        
-        # --- NUEVO BOTÓN ---
         btn_analisis = QPushButton(QIcon("icons/lab.png"), " Análisis de Laboratorio")
         btn_analisis.clicked.connect(self.gestionar_analisis_paciente)
 
@@ -132,27 +131,56 @@ class VentanaGestionPacientes(QWidget):
         controles_layout.addWidget(btn_agregar); controles_layout.addWidget(btn_editar)
         controles_layout.addWidget(btn_historial); controles_layout.addWidget(btn_analisis)
         
-        self.tabla_pacientes = QTableWidget(columnCount=8, editTriggers=QTableWidget.NoEditTriggers, selectionBehavior=QTableWidget.SelectRows, alternatingRowColors=True)
-        self.tabla_pacientes.setHorizontalHeaderLabels(["ID", "DNI", "Nombre", "Apellidos", "Fecha Nac.", "Género", "Teléfono", "Email"])
+        # MODIFICADO: 9 columnas para incluir la edad
+        self.tabla_pacientes = QTableWidget(columnCount=9, editTriggers=QTableWidget.NoEditTriggers, selectionBehavior=QTableWidget.SelectRows, alternatingRowColors=True)
+        # MODIFICADO: Nuevo encabezado de columna
+        self.tabla_pacientes.setHorizontalHeaderLabels(["ID", "DNI", "Nombre", "Apellidos", "Fecha Nac.", "Edad", "Género", "Teléfono", "Email"])
         self.tabla_pacientes.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # Ajustar tamaño de columnas específicas
+        self.tabla_pacientes.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents) # ID
+        self.tabla_pacientes.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents) # Edad
+
         layout.addLayout(controles_layout); layout.addWidget(self.tabla_pacientes)
         self.cargar_pacientes()
-        
+
+    # NUEVA FUNCIÓN: Para calcular la edad
+    def _calculate_age(self, birthdate_str):
+        if not birthdate_str:
+            return ""
+        try:
+            birthdate = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
+            today = QDate.currentDate().toPyDate()
+            age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+            return str(age)
+        except (ValueError, TypeError):
+            return "" # Devuelve vacío si la fecha es inválida
+
+    # MODIFICADO: Para cargar la edad en la tabla
     def cargar_pacientes(self):
-        # ... (código sin cambios)
         pacientes = data_manager.get_all_patients(self.filtro_paciente.text())
         self.tabla_pacientes.setRowCount(len(pacientes))
         for r, pac in enumerate(pacientes):
-            for c, val in enumerate(pac):
-                if c < 8: self.tabla_pacientes.setItem(r, c, QTableWidgetItem(str(val)))
+            # Cargar datos existentes
+            self.tabla_pacientes.setItem(r, 0, QTableWidgetItem(str(pac['id'])))
+            self.tabla_pacientes.setItem(r, 1, QTableWidgetItem(pac['dni']))
+            self.tabla_pacientes.setItem(r, 2, QTableWidgetItem(pac['nombre']))
+            self.tabla_pacientes.setItem(r, 3, QTableWidgetItem(pac['apellidos']))
+            self.tabla_pacientes.setItem(r, 4, QTableWidgetItem(pac['fecha_nac']))
+            
+            # Calcular y cargar la edad
+            edad = self._calculate_age(pac['fecha_nac'])
+            self.tabla_pacientes.setItem(r, 5, QTableWidgetItem(edad))
+            
+            # Cargar el resto de los datos
+            self.tabla_pacientes.setItem(r, 6, QTableWidgetItem(pac['genero']))
+            self.tabla_pacientes.setItem(r, 7, QTableWidgetItem(pac['telefono']))
+            self.tabla_pacientes.setItem(r, 8, QTableWidgetItem(pac['email']))
         
     def abrir_dialogo_paciente(self):
-        # ... (código sin cambios)
         dialogo = DialogoPaciente(parent=self)
         if dialogo.exec(): data_manager.add_patient(dialogo.get_data()); QMessageBox.information(self, "Éxito", "Paciente agregado."); self.cargar_pacientes()
 
     def editar_paciente_seleccionado(self):
-        # ... (código sin cambios)
         row = self.tabla_pacientes.currentRow()
         if row < 0: return QMessageBox.warning(self, "Atención", "Seleccione un paciente.")
         paciente_id = int(self.tabla_pacientes.item(row, 0).text())
@@ -160,7 +188,6 @@ class VentanaGestionPacientes(QWidget):
         if dialogo.exec(): data_manager.update_patient(paciente_id, dialogo.get_data()); QMessageBox.information(self, "Éxito", "Paciente actualizado."); self.cargar_pacientes()
 
     def ver_historial_clinico(self):
-        # ... (código sin cambios)
         row = self.tabla_pacientes.currentRow()
         if row < 0: return QMessageBox.warning(self, "Atención", "Seleccione un paciente para ver su historial.")
         paciente_id = int(self.tabla_pacientes.item(row, 0).text())
@@ -170,7 +197,6 @@ class VentanaGestionPacientes(QWidget):
         self.historial_window = VentanaHistorialClinico(paciente_id, paciente_nombre, self)
         self.historial_window.exec()
         
-    # --- NUEVO MÉTODO ---
     def gestionar_analisis_paciente(self):
         row = self.tabla_pacientes.currentRow()
         if row < 0:
@@ -181,6 +207,5 @@ class VentanaGestionPacientes(QWidget):
         apellidos = self.tabla_pacientes.item(row, 3).text()
         paciente_nombre = f"{nombre} {apellidos}"
         
-        # Abrir la nueva ventana de gestión de análisis
         self.analisis_window = VentanaGestionAnalisis(paciente_id, paciente_nombre, self)
         self.analisis_window.exec()

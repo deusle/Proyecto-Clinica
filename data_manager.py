@@ -2,6 +2,7 @@
 import database
 import ct_scan_analyzer
 import json
+from datetime import datetime
 from config import ADMIN_USER, ADMIN_PASS, GOOGLE_API_KEY
 import google.generativeai as genai
 
@@ -124,12 +125,13 @@ def generate_report_summary_with_ai(start_date, end_date, kpis, specialty_data):
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-pro') # O el modelo que estés usando
+        model = genai.GenerativeModel('gemini-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         return f"ERROR: Ocurrió un problema al comunicarse con la IA. Detalles: {e}"
 
+# MODIFICADO: Añadida la fecha actual al prompt de la IA
 def generate_clinical_summary_with_ai(patient_id):
     """
     Genera un resumen del historial clínico de un paciente usando la IA de Google.
@@ -145,14 +147,19 @@ def generate_clinical_summary_with_ai(patient_id):
     historial = get_patient_clinical_history(patient_id)
     if not historial:
         return "El paciente no tiene un historial clínico registrado para generar un resumen."
+    
+    # NUEVO: Obtener la fecha actual para dar contexto a la IA
+    fecha_actual = datetime.now().strftime("%d de %B de %Y")
 
     # Construir el prompt para la IA
     prompt_parts = [
         "**Instrucciones para la IA:**",
         "Eres un asistente médico inteligente. A partir del siguiente historial clínico de un paciente, genera un resumen conciso en formato Markdown. El resumen debe ser claro y fácil de entender para un profesional de la salud.",
+        # NUEVO: Instrucción con la fecha actual
+        f"La fecha actual es **{fecha_actual}**. Utiliza esta fecha como referencia para contextualizar los eventos en el tiempo (por ejemplo, 'la última consulta fue hace 3 meses', 'diagnosticado hace 2 años').",
         "El resumen debe incluir las siguientes secciones:",
         "1. **Resumen General del Paciente:** Un párrafo breve que describa las condiciones y diagnósticos más relevantes o recurrentes.",
-        "2. **Línea de Tiempo de Consultas Clave:** Una lista cronológica de los eventos médicos más importantes (diagnósticos significativos, cambios de tratamiento, etc.).",
+        "2. **Línea de Tiempo de Consultas Clave:** Una lista cronológica de los eventos médicos más importantes (diagnósticos significativos, cambios de tratamiento, etc.), indicando cuánto tiempo ha pasado desde la fecha actual.",
         "3. **Alertas o Puntos de Atención:** Destaca cualquier patrón, contradicción o dato que pueda requerir atención especial en futuras consultas (ej. alergias, mediciones vitales anómalas recurrentes, etc.).",
         "\n---\n",
         "**HISTORIAL CLÍNICO DEL PACIENTE PARA ANÁLISIS:**\n",
@@ -178,7 +185,7 @@ def generate_clinical_summary_with_ai(patient_id):
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-pro') # O el modelo que estés usando
+        model = genai.GenerativeModel('gemini-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
