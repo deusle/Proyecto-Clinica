@@ -16,16 +16,16 @@ def load_ct_model():
         return True
     
     if not os.path.exists(MODEL_PATH):
-        print(f"❌ ERROR: No se encontró el archivo del modelo en la ruta: {MODEL_PATH}")
+        print(f"ERROR: No se encontro el archivo del modelo en la ruta: {MODEL_PATH}")
         return False
         
     try:
         model = load_model(MODEL_PATH, compile=False)
         MODEL_LOADED = True
-        print("✅ Modelo de análisis de CT cargado exitosamente.")
+        print("Modelo de analisis de CT cargado exitosamente.")
         return True
     except Exception as e:
-        print(f"❌ ERROR: No se pudo cargar el modelo '{MODEL_PATH}'. Detalles: {e}")
+        print(f"ERROR: No se pudo cargar el modelo '{MODEL_PATH}'. Detalles: {e}")
         return False
 
 def _preprocess_image(image_path):
@@ -45,7 +45,7 @@ def _interpret_predictions(prediction):
     """Interpreta la salida cruda del modelo en un diccionario estructurado."""
     results = {}
     organ_keys = ['liver', 'kidney', 'spleen']
-    class_labels = ['Sano', 'Lesión Leve', 'Lesión Grave']
+    class_labels = ['Sano', 'Lesion Leve', 'Lesion Grave']
     
     # Lesiones binarias (sigmoid)
     results['bowel_injury'] = float(prediction[0][0][0])
@@ -62,16 +62,14 @@ def _interpret_predictions(prediction):
     
     return results
 
+# --- FUNCIÓN MODIFICADA ---
 def format_prediction_for_display(prediction):
     """Formatea la predicción en un texto legible para la UI."""
-    bowel_prob = prediction['bowel_injury'] * 100
-    extra_prob = prediction['extravasation_injury'] * 100
+    # Se han eliminado las probabilidades de lesión intestinal y extravasación de la vista,
+    # pero los datos siguen estando disponibles en el diccionario de predicción crudo.
     
     text_content = [
-        "--- ANÁLISIS DE TOMOGRAFÍA (IA) ---",
-        f"Prob. de Lesión Intestinal: {bowel_prob:.2f}%",
-        f"Prob. de Extravasación: {extra_prob:.2f}%",
-        "\n--- Estado de Órganos ---",
+        "--- Estado de Órganos (Análisis IA) ---", # Título modificado para mantener el contexto
         f"Hígado: {prediction['liver_prediction']}",
         f"  (Sano: {prediction['liver_healthy']:.2%}, Leve: {prediction['liver_low']:.2%}, Grave: {prediction['liver_high']:.2%})",
         "",
@@ -87,7 +85,7 @@ def analyze_ct_scan(image_path):
     """Función principal para analizar una imagen de CT."""
     if not MODEL_LOADED:
         if not load_ct_model():
-            error_msg = "El modelo de IA no está disponible."
+            error_msg = "El modelo de IA no esta disponible."
             return {"error": error_msg}, error_msg
 
     preprocessed_image = _preprocess_image(image_path)
@@ -101,7 +99,7 @@ def analyze_ct_scan(image_path):
         formatted_text = format_prediction_for_display(interpreted_prediction)
         return interpreted_prediction, formatted_text
     except Exception as e:
-        error_msg = f"Ocurrió un error durante la predicción: {e}"
+        error_msg = f"Ocurrio un error durante la prediccion: {e}"
         return {"error": error_msg}, error_msg
 
 # Cargar el modelo al iniciar el módulo
