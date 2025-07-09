@@ -1,10 +1,14 @@
 # data_manager.py
 import database
+import ct_scan_analyzer
+import json
+from datetime import datetime
 from config import ADMIN_USER, ADMIN_PASS, GOOGLE_API_KEY
 import google.generativeai as genai
 
 # --- Lógica de Autenticación y General ---
-def verify_credentials(username, password): return username == ADMIN_USER and password == ADMIN_PASS
+def verify_credentials(username, password): 
+    return username == ADMIN_USER and password == ADMIN_PASS
 
 # --- Lógica de Pacientes ---
 def get_all_patients(filter_text=""): return database.obtener_pacientes(filter_text)
@@ -28,9 +32,6 @@ def get_appointments_by_doctor_and_day(doctor_id, date_str): return database.obt
 def get_appointment_by_id(appointment_id): return database.obtener_cita_completa_por_id(appointment_id)
 
 # --- Lógica de Historial Clínico ---
-def get_paid_appointments_for_clinical_record(filter_text=""):
-    return database.obtener_historial_pagos()
-
 def save_clinical_record(appointment_id, data):
     database.actualizar_consulta_clinica(appointment_id, *data)
 
@@ -61,16 +62,34 @@ def get_invoice_details(cita_id):
     }
     return invoice_info
 
+# --- Lógica para el Módulo de Laboratorio ---
+def add_lab_test(paciente_id, tipo, fecha, resultados, archivo, ia_results_dict):
+    ia_json = json.dumps(ia_results_dict) if ia_results_dict else None
+    database.agregar_analisis_laboratorio(paciente_id, tipo, fecha, resultados, archivo, ia_json)
+
+def get_lab_tests_for_patient(paciente_id):
+    return database.obtener_analisis_por_paciente(paciente_id)
+
+def delete_lab_test(analisis_id):
+    database.eliminar_analisis(analisis_id)
+
+def analyze_ct_scan_image(image_path):
+    """Llama al módulo analizador y devuelve los resultados."""
+    return ct_scan_analyzer.analyze_ct_scan(image_path)
+
 # --- Lógica de Reportes ---
 def get_payment_method_distribution(start_date, end_date): return database.obtener_distribucion_metodo_pago(start_date, end_date)
 def get_insurance_usage_distribution(start_date, end_date): return database.obtener_distribucion_uso_seguro(start_date, end_date)
 def get_total_revenue(start_date, end_date): return database.calcular_ingresos_totales(start_date, end_date)
 def get_total_attended_appointments(start_date, end_date): return database.contar_citas_atendidas(start_date, end_date)
+def get_performance_by_specialty(start_date, end_date): return database.obtener_rendimiento_por_especialidad(start_date, end_date)
+def get_appointments_per_day(start_date, end_date): return database.obtener_citas_por_dia(start_date, end_date)
 
-# --- FUNCIÓN DE IA MEJORADA ---
-def generate_clinical_summary_with_ai(patient_id):
+# --- Funciones de IA ---
+
+def generate_report_summary_with_ai(start_date, end_date, kpis, specialty_data):
     """
-    Genera un resumen clínico y puntos clave usando la IA de Google y los datos estructurados.
+    Genera un análisis de negocio sobre el reporte usando la IA de Google.
     """
     if not GOOGLE_API_KEY or GOOGLE_API_KEY == "TU_CLAVE_API_AQUI":
         return "ERROR: La clave API de Google no ha sido configurada en el archivo config.py."
@@ -80,28 +99,70 @@ def generate_clinical_summary_with_ai(patient_id):
     except Exception as e:
         return f"ERROR: Fallo al configurar la API de Google. Verifica la clave. Detalles: {e}"
 
-    paciente = get_patient_by_id(patient_id)
-    historial = get_patient_clinical_history(patient_id)
-
-    if not paciente:
-        return "ERROR: No se encontró al paciente."
-    if not historial:
-        return "INFORME: El paciente no tiene un historial clínico registrado para analizar."
-
+    # Construir el prompt para la IA
     prompt_parts = [
         "**Instrucciones para la IA:**",
-        "Eres un asistente médico experto. Analiza el siguiente historial clínico de un paciente y genera un informe conciso para el médico tratante. El informe debe estar en formato Markdown y estructurado de la siguiente manera:",
-        "1.  **Resumen General del Paciente:** Un párrafo que sintetice el estado de salud general, condiciones preexistentes y cualquier dato demográfico relevante.",
-        "2.  **Puntos Clave del Historial:** Una lista de viñetas que resalten los diagnósticos más importantes, tratamientos recurrentes, alergias conocidas o condiciones crónicas significativas. Presta especial atención a la evolución de los signos vitales.",
-        "3.  **Posibles Alertas o Seguimientos:** Una breve sección que sugiera posibles áreas de atención futura o seguimientos recomendados basados en el historial.",
+        "Eres un analista de datos de negocio especializado en el sector salud. Analiza los siguientes KPIs y datos de un reporte de la clínica GesClínica y genera un informe en formato Markdown.",
+        f"El período de análisis es del **{start_date}** al **{end_date}**.",
+        "El informe debe contener las siguientes secciones:",
+        "1.  **Resumen Ejecutivo:** Un párrafo de alto nivel que sintetice los resultados clave.",
+        "2.  **Análisis de Desempeño:** Una evaluación más detallada de los KPIs y el rendimiento de las especialidades, destacando los puntos fuertes y las áreas de oportunidad.",
+        "3.  **Recomendaciones Clave:** Una lista con 2-3 recomendaciones accionables basadas en los datos para mejorar la gestión de la clínica (ej. marketing, gestión de personal, optimización de precios, etc.).",
         "\n---\n",
-        "**DATOS DEL PACIENTE:**",
-        f"- **Nombre:** {paciente['nombre']} {paciente['apellidos']}",
-        f"- **Fecha de Nacimiento:** {paciente['fecha_nac']}",
-        f"- **Género:** {paciente['genero']}",
-        f"- **Historial Básico / Alergias:** {paciente['historial_basico'] or 'No especificado'}",
+        "**DATOS PARA EL ANÁLISIS:**\n",
+        "**Indicadores Clave de Rendimiento (KPIs):**",
+        f"- **Ingresos Totales:** S/ {kpis.get('revenue', 0):.2f}",
+        f"- **Total de Citas Atendidas:** {kpis.get('appointments', 0)}\n",
+        "**Rendimiento por Especialidad:**",
+    ]
+
+    if specialty_data:
+        for item in specialty_data:
+            prompt_parts.append(f"- **{item['especialidad']}:** {item['numero_citas']} citas generaron S/ {item['ingresos_totales']:.2f}")
+    else:
+        prompt_parts.append("- No hay datos de rendimiento por especialidad en este período.")
+
+    prompt = "\n".join(prompt_parts)
+
+    try:
+        model = genai.GenerativeModel('gemini-2.5-pro')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"ERROR: Ocurrió un problema al comunicarse con la IA. Detalles: {e}"
+
+# MODIFICADO: Añadida la fecha actual al prompt de la IA
+def generate_clinical_summary_with_ai(patient_id):
+    """
+    Genera un resumen del historial clínico de un paciente usando la IA de Google.
+    """
+    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "TU_CLAVE_API_AQUI":
+        return "ERROR: La clave API de Google no ha sido configurada en el archivo config.py."
+
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY)
+    except Exception as e:
+        return f"ERROR: Fallo al configurar la API de Google. Verifica la clave. Detalles: {e}"
+
+    historial = get_patient_clinical_history(patient_id)
+    if not historial:
+        return "El paciente no tiene un historial clínico registrado para generar un resumen."
+    
+    # NUEVO: Obtener la fecha actual para dar contexto a la IA
+    fecha_actual = datetime.now().strftime("%d de %B de %Y")
+
+    # Construir el prompt para la IA
+    prompt_parts = [
+        "**Instrucciones para la IA:**",
+        "Eres un asistente médico inteligente. A partir del siguiente historial clínico de un paciente, genera un resumen conciso en formato Markdown. El resumen debe ser claro y fácil de entender para un profesional de la salud.",
+        # NUEVO: Instrucción con la fecha actual
+        f"La fecha actual es **{fecha_actual}**. Utiliza esta fecha como referencia para contextualizar los eventos en el tiempo (por ejemplo, 'la última consulta fue hace 3 meses', 'diagnosticado hace 2 años').",
+        "El resumen debe incluir las siguientes secciones:",
+        "1. **Resumen General del Paciente:** Un párrafo breve que describa las condiciones y diagnósticos más relevantes o recurrentes.",
+        "2. **Línea de Tiempo de Consultas Clave:** Una lista cronológica de los eventos médicos más importantes (diagnósticos significativos, cambios de tratamiento, etc.), indicando cuánto tiempo ha pasado desde la fecha actual.",
+        "3. **Alertas o Puntos de Atención:** Destaca cualquier patrón, contradicción o dato que pueda requerir atención especial en futuras consultas (ej. alergias, mediciones vitales anómalas recurrentes, etc.).",
         "\n---\n",
-        "**HISTORIAL DE CONSULTAS (de más reciente a más antigua):**\n"
+        "**HISTORIAL CLÍNICO DEL PACIENTE PARA ANÁLISIS:**\n",
     ]
 
     for consulta in historial:
@@ -124,7 +185,7 @@ def generate_clinical_summary_with_ai(patient_id):
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro') # Modelo actualizado
+        model = genai.GenerativeModel('gemini-2.5-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
