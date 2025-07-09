@@ -131,47 +131,41 @@ class VentanaGestionPacientes(QWidget):
         controles_layout.addWidget(btn_agregar); controles_layout.addWidget(btn_editar)
         controles_layout.addWidget(btn_historial); controles_layout.addWidget(btn_analisis)
         
-        # MODIFICADO: 9 columnas para incluir la edad
         self.tabla_pacientes = QTableWidget(columnCount=9, editTriggers=QTableWidget.NoEditTriggers, selectionBehavior=QTableWidget.SelectRows, alternatingRowColors=True)
-        # MODIFICADO: Nuevo encabezado de columna
         self.tabla_pacientes.setHorizontalHeaderLabels(["ID", "DNI", "Nombre", "Apellidos", "Fecha Nac.", "Edad", "Género", "Teléfono", "Email"])
         self.tabla_pacientes.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        # Ajustar tamaño de columnas específicas
         self.tabla_pacientes.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents) # ID
         self.tabla_pacientes.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents) # Edad
 
         layout.addLayout(controles_layout); layout.addWidget(self.tabla_pacientes)
         self.cargar_pacientes()
 
-    # NUEVA FUNCIÓN: Para calcular la edad
+    # MODIFICADO: Esta función ahora está corregida
     def _calculate_age(self, birthdate_str):
         if not birthdate_str:
             return ""
         try:
             birthdate = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
-            today = QDate.currentDate().toPyDate()
+            # LA LÍNEA CORREGIDA ESTÁ AQUÍ:
+            today = datetime.now().date() 
             age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
             return str(age)
         except (ValueError, TypeError):
             return "" # Devuelve vacío si la fecha es inválida
 
-    # MODIFICADO: Para cargar la edad en la tabla
     def cargar_pacientes(self):
         pacientes = data_manager.get_all_patients(self.filtro_paciente.text())
         self.tabla_pacientes.setRowCount(len(pacientes))
         for r, pac in enumerate(pacientes):
-            # Cargar datos existentes
             self.tabla_pacientes.setItem(r, 0, QTableWidgetItem(str(pac['id'])))
             self.tabla_pacientes.setItem(r, 1, QTableWidgetItem(pac['dni']))
             self.tabla_pacientes.setItem(r, 2, QTableWidgetItem(pac['nombre']))
             self.tabla_pacientes.setItem(r, 3, QTableWidgetItem(pac['apellidos']))
             self.tabla_pacientes.setItem(r, 4, QTableWidgetItem(pac['fecha_nac']))
             
-            # Calcular y cargar la edad
             edad = self._calculate_age(pac['fecha_nac'])
             self.tabla_pacientes.setItem(r, 5, QTableWidgetItem(edad))
             
-            # Cargar el resto de los datos
             self.tabla_pacientes.setItem(r, 6, QTableWidgetItem(pac['genero']))
             self.tabla_pacientes.setItem(r, 7, QTableWidgetItem(pac['telefono']))
             self.tabla_pacientes.setItem(r, 8, QTableWidgetItem(pac['email']))
