@@ -1,38 +1,16 @@
 # data_manager.py
 import database
-import ct_scan_analyzer # <-- NUEVA IMPORTACIÓN
-import json # <-- NUEVA IMPORTACIÓN
+import ct_scan_analyzer
+import json
 from config import ADMIN_USER, ADMIN_PASS, GOOGLE_API_KEY
 import google.generativeai as genai
 
-<<<<<<< HEAD
-# ... (Funciones existentes sin cambios) ...
-=======
 # --- Lógica de Autenticación y General ---
->>>>>>> origin/main
-def verify_credentials(username, password): return username == ADMIN_USER and password == ADMIN_PASS
+def verify_credentials(username, password): 
+    return username == ADMIN_USER and password == ADMIN_PASS
 
 # --- Lógica de Pacientes ---
 def get_all_patients(filter_text=""): return database.obtener_pacientes(filter_text)
-# ... etc ...
-
-# --- NUEVAS FUNCIONES PARA EL MÓDULO DE LABORATORIO ---
-def add_lab_test(paciente_id, tipo, fecha, resultados, archivo, ia_results_dict):
-    ia_json = json.dumps(ia_results_dict) if ia_results_dict else None
-    database.agregar_analisis_laboratorio(paciente_id, tipo, fecha, resultados, archivo, ia_json)
-
-def get_lab_tests_for_patient(paciente_id):
-    return database.obtener_analisis_por_paciente(paciente_id)
-
-def delete_lab_test(analisis_id):
-    database.eliminar_analisis(analisis_id)
-
-def analyze_ct_scan_image(image_path):
-    """Llama al módulo analizador y devuelve los resultados."""
-    return ct_scan_analyzer.analyze_ct_scan(image_path)
-
-
-# ... (El resto de funciones de data_manager.py se mantienen sin cambios) ...
 def add_patient(data): database.agregar_paciente(*data)
 def get_patient_by_id(patient_id): return database.obtener_paciente_por_id(patient_id)
 def update_patient(patient_id, data): database.actualizar_paciente(patient_id, *data)
@@ -53,9 +31,6 @@ def get_appointments_by_doctor_and_day(doctor_id, date_str): return database.obt
 def get_appointment_by_id(appointment_id): return database.obtener_cita_completa_por_id(appointment_id)
 
 # --- Lógica de Historial Clínico ---
-def get_paid_appointments_for_clinical_record(filter_text=""):
-    return database.obtener_historial_pagos()
-
 def save_clinical_record(appointment_id, data):
     database.actualizar_consulta_clinica(appointment_id, *data)
 
@@ -67,29 +42,6 @@ def get_scheduled_appointments(filter_text=""): return database.obtener_citas_pr
 def register_payment(appointment_id, data): database.registrar_pago(appointment_id, *data)
 def get_payment_history(): return database.obtener_historial_pagos()
 
-<<<<<<< HEAD
-# --- FUNCIONES PARA REPORTES BÁSICOS Y KPIS ---
-def get_payment_method_distribution(start_date, end_date):
-    return database.obtener_distribucion_metodo_pago(start_date, end_date)
-
-def get_insurance_usage_distribution(start_date, end_date):
-    return database.obtener_distribucion_uso_seguro(start_date, end_date)
-
-def get_total_revenue(start_date, end_date):
-    return database.calcular_ingresos_totales(start_date, end_date)
-
-def get_total_attended_appointments(start_date, end_date):
-    return database.contar_citas_atendidas(start_date, end_date)
-
-# --- FUNCIONES PARA REPORTES AVANZADOS ---
-def get_performance_by_specialty(start_date, end_date):
-    return database.obtener_rendimiento_por_especialidad(start_date, end_date)
-
-def get_appointments_per_day(start_date, end_date):
-    return database.obtener_citas_por_dia(start_date, end_date)
-
-def generate_report_summary_with_ai(start_date, end_date, kpis, specialty_data):
-=======
 def get_invoice_details(cita_id):
     """Recopila todos los datos de una cita para generar la boleta."""
     cita_data = database.obtener_cita_completa_por_id(cita_id)
@@ -109,15 +61,32 @@ def get_invoice_details(cita_id):
     }
     return invoice_info
 
+# --- Lógica para el Módulo de Laboratorio ---
+def add_lab_test(paciente_id, tipo, fecha, resultados, archivo, ia_results_dict):
+    ia_json = json.dumps(ia_results_dict) if ia_results_dict else None
+    database.agregar_analisis_laboratorio(paciente_id, tipo, fecha, resultados, archivo, ia_json)
+
+def get_lab_tests_for_patient(paciente_id):
+    return database.obtener_analisis_por_paciente(paciente_id)
+
+def delete_lab_test(analisis_id):
+    database.eliminar_analisis(analisis_id)
+
+def analyze_ct_scan_image(image_path):
+    """Llama al módulo analizador y devuelve los resultados."""
+    return ct_scan_analyzer.analyze_ct_scan(image_path)
+
 # --- Lógica de Reportes ---
 def get_payment_method_distribution(start_date, end_date): return database.obtener_distribucion_metodo_pago(start_date, end_date)
 def get_insurance_usage_distribution(start_date, end_date): return database.obtener_distribucion_uso_seguro(start_date, end_date)
 def get_total_revenue(start_date, end_date): return database.calcular_ingresos_totales(start_date, end_date)
 def get_total_attended_appointments(start_date, end_date): return database.contar_citas_atendidas(start_date, end_date)
+def get_performance_by_specialty(start_date, end_date): return database.obtener_rendimiento_por_especialidad(start_date, end_date)
+def get_appointments_per_day(start_date, end_date): return database.obtener_citas_por_dia(start_date, end_date)
 
-# --- FUNCIÓN DE IA MEJORADA ---
-def generate_clinical_summary_with_ai(patient_id):
->>>>>>> origin/main
+# --- Funciones de IA ---
+
+def generate_report_summary_with_ai(start_date, end_date, kpis, specialty_data):
     """
     Genera un análisis de negocio sobre el reporte usando la IA de Google.
     """
@@ -146,13 +115,49 @@ def generate_clinical_summary_with_ai(patient_id):
         "**Rendimiento por Especialidad:**",
     ]
 
-<<<<<<< HEAD
     if specialty_data:
         for item in specialty_data:
             prompt_parts.append(f"- **{item['especialidad']}:** {item['numero_citas']} citas generaron S/ {item['ingresos_totales']:.2f}")
     else:
         prompt_parts.append("- No hay datos de rendimiento por especialidad en este período.")
-=======
+
+    prompt = "\n".join(prompt_parts)
+
+    try:
+        model = genai.GenerativeModel('gemini-pro') # O el modelo que estés usando
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"ERROR: Ocurrió un problema al comunicarse con la IA. Detalles: {e}"
+
+def generate_clinical_summary_with_ai(patient_id):
+    """
+    Genera un resumen del historial clínico de un paciente usando la IA de Google.
+    """
+    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "TU_CLAVE_API_AQUI":
+        return "ERROR: La clave API de Google no ha sido configurada en el archivo config.py."
+
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY)
+    except Exception as e:
+        return f"ERROR: Fallo al configurar la API de Google. Verifica la clave. Detalles: {e}"
+
+    historial = get_patient_clinical_history(patient_id)
+    if not historial:
+        return "El paciente no tiene un historial clínico registrado para generar un resumen."
+
+    # Construir el prompt para la IA
+    prompt_parts = [
+        "**Instrucciones para la IA:**",
+        "Eres un asistente médico inteligente. A partir del siguiente historial clínico de un paciente, genera un resumen conciso en formato Markdown. El resumen debe ser claro y fácil de entender para un profesional de la salud.",
+        "El resumen debe incluir las siguientes secciones:",
+        "1. **Resumen General del Paciente:** Un párrafo breve que describa las condiciones y diagnósticos más relevantes o recurrentes.",
+        "2. **Línea de Tiempo de Consultas Clave:** Una lista cronológica de los eventos médicos más importantes (diagnósticos significativos, cambios de tratamiento, etc.).",
+        "3. **Alertas o Puntos de Atención:** Destaca cualquier patrón, contradicción o dato que pueda requerir atención especial en futuras consultas (ej. alergias, mediciones vitales anómalas recurrentes, etc.).",
+        "\n---\n",
+        "**HISTORIAL CLÍNICO DEL PACIENTE PARA ANÁLISIS:**\n",
+    ]
+
     for consulta in historial:
         consulta_details = [
             f"**Fecha:** {consulta['fecha_hora']}",
@@ -169,12 +174,11 @@ def generate_clinical_summary_with_ai(patient_id):
             "---"
         ]
         prompt_parts.append("\n".join(consulta_details))
->>>>>>> origin/main
 
     prompt = "\n".join(prompt_parts)
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro') # Modelo actualizado
+        model = genai.GenerativeModel('gemini-pro') # O el modelo que estés usando
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
