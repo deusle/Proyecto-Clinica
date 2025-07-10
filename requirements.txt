@@ -1,0 +1,26 @@
+# requirements.txt
+
+# --- Core de la Interfaz Gráfica ---
+PySide6==6.6.2
+
+# --- Inteligencia Artificial de Google (Gemini) ---
+google-generativeai==0.5.0
+
+# --- Servicio de Recordatorios por Voz (Twilio) ---
+twilio==8.11.0
+
+# --- Generación de PDF para Boletas ---
+reportlab==4.1.0
+
+# --- Generación de Datos Ficticios (para seed_database.py) ---
+Faker==24.4.0
+
+# --- Machine Learning para Análisis de Tomografías (CT Scans) ---
+tensorflow==2.16.1
+numpy==1.26.4
+
+# --- Programación de Tareas (para reminder_service.py) ---
+schedule==1.2.1
+
+# --- Gestión de variables de entorno ---
+python-dotenv==1.0.1
